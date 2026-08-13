@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AgentsRouteImport } from './routes/agents'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StatusRouteImport } from './routes/status'
 import { Route as IncidentsIndexRouteImport } from './routes/incidents/index'
 import { Route as IncidentsIncidentIdRouteImport } from './routes/incidents/$incidentId'
@@ -27,6 +28,11 @@ const IndexRoute = IndexRouteImport.update({
 const AgentsRoute = AgentsRouteImport.update({
   id: '/agents',
   path: '/agents',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StatusRoute = StatusRouteImport.update({
@@ -68,6 +74,7 @@ const MonitorsMonitorIdEditRoute = MonitorsMonitorIdEditRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/agents': typeof AgentsRoute
+  '/settings': typeof SettingsRoute
   '/status': typeof StatusRoute
   '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
   '/monitors/$monitorId': typeof MonitorsMonitorIdRoute
@@ -79,6 +86,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agents': typeof AgentsRoute
+  '/settings': typeof SettingsRoute
   '/status': typeof StatusRoute
   '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
   '/monitors/$monitorId': typeof MonitorsMonitorIdRoute
@@ -91,6 +99,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/agents': typeof AgentsRoute
+  '/settings': typeof SettingsRoute
   '/status': typeof StatusRoute
   '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
   '/monitors/$monitorId': typeof MonitorsMonitorIdRoute
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/agents'
+    | '/settings'
     | '/status'
     | '/incidents/$incidentId'
     | '/monitors/$monitorId'
@@ -115,6 +125,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/agents'
+    | '/settings'
     | '/status'
     | '/incidents/$incidentId'
     | '/monitors/$monitorId'
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/agents'
+    | '/settings'
     | '/status'
     | '/incidents/$incidentId'
     | '/monitors/$monitorId'
@@ -138,6 +150,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AgentsRoute: typeof AgentsRoute
+  SettingsRoute: typeof SettingsRoute
   StatusRoute: typeof StatusRoute
   IncidentsIncidentIdRoute: typeof IncidentsIncidentIdRoute
   MonitorsMonitorIdRoute: typeof MonitorsMonitorIdRoute
@@ -161,6 +174,13 @@ declare module '@tanstack/react-router' {
       path: '/agents'
       fullPath: '/agents'
       preLoaderRoute: typeof AgentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/status': {
@@ -218,6 +238,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AgentsRoute: AgentsRoute,
+  SettingsRoute: SettingsRoute,
   StatusRoute: StatusRoute,
   IncidentsIncidentIdRoute: IncidentsIncidentIdRoute,
   MonitorsMonitorIdRoute: MonitorsMonitorIdRoute,
