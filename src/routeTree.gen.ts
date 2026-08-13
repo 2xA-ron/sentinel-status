@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MonitorsIndexRouteImport } from './routes/monitors/index'
+import { Route as MonitorsNewRouteImport } from './routes/monitors/new'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,30 +23,39 @@ const MonitorsIndexRoute = MonitorsIndexRouteImport.update({
   path: '/monitors/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MonitorsNewRoute = MonitorsNewRouteImport.update({
+  id: '/monitors/new',
+  path: '/monitors/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/monitors/new': typeof MonitorsNewRoute
   '/monitors/': typeof MonitorsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/monitors/new': typeof MonitorsNewRoute
   '/monitors': typeof MonitorsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/monitors/new': typeof MonitorsNewRoute
   '/monitors/': typeof MonitorsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/monitors/'
+  fullPaths: '/' | '/monitors/new' | '/monitors/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/monitors'
-  id: '__root__' | '/' | '/monitors/'
+  to: '/' | '/monitors/new' | '/monitors'
+  id: '__root__' | '/' | '/monitors/new' | '/monitors/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  MonitorsNewRoute: typeof MonitorsNewRoute
   MonitorsIndexRoute: typeof MonitorsIndexRoute
 }
 
@@ -65,11 +75,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MonitorsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/monitors/new': {
+      id: '/monitors/new'
+      path: '/monitors/new'
+      fullPath: '/monitors/new'
+      preLoaderRoute: typeof MonitorsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  MonitorsNewRoute: MonitorsNewRoute,
   MonitorsIndexRoute: MonitorsIndexRoute,
 }
 export const routeTree = rootRouteImport
