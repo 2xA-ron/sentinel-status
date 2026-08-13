@@ -121,7 +121,7 @@ function MonitorDetailPage() {
     return (
       <ErrorState
         title="Couldn't load monitor"
-        description={(monitorQuery.error as Error | undefined)?.message}
+        description={(monitorQuery.error as Error | undefined)?.message ?? "Unknown error"}
         onRetry={() => void monitorQuery.refetch()}
       />
     );
