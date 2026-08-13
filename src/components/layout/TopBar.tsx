@@ -17,7 +17,7 @@ export function TopBar({
   activeIncidents: number;
   onOpenPalette: () => void;
 }) {
-  const { theme, setTheme } = useTheme();
+  const { preference, setPreference } = useTheme();
 
   return (
     <header className="bg-surface/90 border-border sticky top-0 z-30 flex h-12 items-center gap-2 border-b px-2 backdrop-blur sm:px-4">
@@ -54,13 +54,13 @@ export function TopBar({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setTheme("light")} data-active={theme === "light"}>
+          <DropdownMenuItem onClick={() => setPreference("light")} data-active={preference === "light"}>
             <Sun className="size-4" aria-hidden /> Light
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setTheme("dark")} data-active={theme === "dark"}>
+          <DropdownMenuItem onClick={() => setPreference("dark")} data-active={preference === "dark"}>
             <Moon className="size-4" aria-hidden /> Dark
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setTheme("system")} data-active={theme === "system"}>
+          <DropdownMenuItem onClick={() => setPreference("system")} data-active={preference === "system"}>
             <Laptop className="size-4" aria-hidden /> System
           </DropdownMenuItem>
         </DropdownMenuContent>
