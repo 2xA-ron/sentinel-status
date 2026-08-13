@@ -10,33 +10,154 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AgentsRouteImport } from './routes/agents'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as StatusRouteImport } from './routes/status'
+import { Route as IncidentsIndexRouteImport } from './routes/incidents/index'
+import { Route as IncidentsIncidentIdRouteImport } from './routes/incidents/$incidentId'
+import { Route as MonitorsIndexRouteImport } from './routes/monitors/index'
+import { Route as MonitorsMonitorIdRouteImport } from './routes/monitors/$monitorId'
+import { Route as MonitorsNewRouteImport } from './routes/monitors/new'
+import { Route as MonitorsMonitorIdEditRouteImport } from './routes/monitors/$monitorId_.edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AgentsRoute = AgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatusRoute = StatusRouteImport.update({
+  id: '/status',
+  path: '/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IncidentsIndexRoute = IncidentsIndexRouteImport.update({
+  id: '/incidents/',
+  path: '/incidents/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IncidentsIncidentIdRoute = IncidentsIncidentIdRouteImport.update({
+  id: '/incidents/$incidentId',
+  path: '/incidents/$incidentId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonitorsIndexRoute = MonitorsIndexRouteImport.update({
+  id: '/monitors/',
+  path: '/monitors/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonitorsMonitorIdRoute = MonitorsMonitorIdRouteImport.update({
+  id: '/monitors/$monitorId',
+  path: '/monitors/$monitorId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonitorsNewRoute = MonitorsNewRouteImport.update({
+  id: '/monitors/new',
+  path: '/monitors/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonitorsMonitorIdEditRoute = MonitorsMonitorIdEditRouteImport.update({
+  id: '/monitors/$monitorId_/edit',
+  path: '/monitors/$monitorId/edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/agents': typeof AgentsRoute
+  '/settings': typeof SettingsRoute
+  '/status': typeof StatusRoute
+  '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
+  '/monitors/$monitorId': typeof MonitorsMonitorIdRoute
+  '/monitors/new': typeof MonitorsNewRoute
+  '/incidents/': typeof IncidentsIndexRoute
+  '/monitors/': typeof MonitorsIndexRoute
+  '/monitors/$monitorId/edit': typeof MonitorsMonitorIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/agents': typeof AgentsRoute
+  '/settings': typeof SettingsRoute
+  '/status': typeof StatusRoute
+  '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
+  '/monitors/$monitorId': typeof MonitorsMonitorIdRoute
+  '/monitors/new': typeof MonitorsNewRoute
+  '/incidents': typeof IncidentsIndexRoute
+  '/monitors': typeof MonitorsIndexRoute
+  '/monitors/$monitorId/edit': typeof MonitorsMonitorIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/agents': typeof AgentsRoute
+  '/settings': typeof SettingsRoute
+  '/status': typeof StatusRoute
+  '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
+  '/monitors/$monitorId': typeof MonitorsMonitorIdRoute
+  '/monitors/new': typeof MonitorsNewRoute
+  '/incidents/': typeof IncidentsIndexRoute
+  '/monitors/': typeof MonitorsIndexRoute
+  '/monitors/$monitorId_/edit': typeof MonitorsMonitorIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/agents'
+    | '/settings'
+    | '/status'
+    | '/incidents/$incidentId'
+    | '/monitors/$monitorId'
+    | '/monitors/new'
+    | '/incidents/'
+    | '/monitors/'
+    | '/monitors/$monitorId/edit'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/agents'
+    | '/settings'
+    | '/status'
+    | '/incidents/$incidentId'
+    | '/monitors/$monitorId'
+    | '/monitors/new'
+    | '/incidents'
+    | '/monitors'
+    | '/monitors/$monitorId/edit'
+  id:
+    | '__root__'
+    | '/'
+    | '/agents'
+    | '/settings'
+    | '/status'
+    | '/incidents/$incidentId'
+    | '/monitors/$monitorId'
+    | '/monitors/new'
+    | '/incidents/'
+    | '/monitors/'
+    | '/monitors/$monitorId_/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AgentsRoute: typeof AgentsRoute
+  SettingsRoute: typeof SettingsRoute
+  StatusRoute: typeof StatusRoute
+  IncidentsIncidentIdRoute: typeof IncidentsIncidentIdRoute
+  MonitorsMonitorIdRoute: typeof MonitorsMonitorIdRoute
+  MonitorsNewRoute: typeof MonitorsNewRoute
+  IncidentsIndexRoute: typeof IncidentsIndexRoute
+  MonitorsIndexRoute: typeof MonitorsIndexRoute
+  MonitorsMonitorIdEditRoute: typeof MonitorsMonitorIdEditRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +169,83 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/agents': {
+      id: '/agents'
+      path: '/agents'
+      fullPath: '/agents'
+      preLoaderRoute: typeof AgentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/status': {
+      id: '/status'
+      path: '/status'
+      fullPath: '/status'
+      preLoaderRoute: typeof StatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/incidents/': {
+      id: '/incidents/'
+      path: '/incidents'
+      fullPath: '/incidents/'
+      preLoaderRoute: typeof IncidentsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/incidents/$incidentId': {
+      id: '/incidents/$incidentId'
+      path: '/incidents/$incidentId'
+      fullPath: '/incidents/$incidentId'
+      preLoaderRoute: typeof IncidentsIncidentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monitors/': {
+      id: '/monitors/'
+      path: '/monitors'
+      fullPath: '/monitors/'
+      preLoaderRoute: typeof MonitorsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monitors/$monitorId': {
+      id: '/monitors/$monitorId'
+      path: '/monitors/$monitorId'
+      fullPath: '/monitors/$monitorId'
+      preLoaderRoute: typeof MonitorsMonitorIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monitors/new': {
+      id: '/monitors/new'
+      path: '/monitors/new'
+      fullPath: '/monitors/new'
+      preLoaderRoute: typeof MonitorsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monitors/$monitorId_/edit': {
+      id: '/monitors/$monitorId_/edit'
+      path: '/monitors/$monitorId/edit'
+      fullPath: '/monitors/$monitorId/edit'
+      preLoaderRoute: typeof MonitorsMonitorIdEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AgentsRoute: AgentsRoute,
+  SettingsRoute: SettingsRoute,
+  StatusRoute: StatusRoute,
+  IncidentsIncidentIdRoute: IncidentsIncidentIdRoute,
+  MonitorsMonitorIdRoute: MonitorsMonitorIdRoute,
+  MonitorsNewRoute: MonitorsNewRoute,
+  IncidentsIndexRoute: IncidentsIndexRoute,
+  MonitorsIndexRoute: MonitorsIndexRoute,
+  MonitorsMonitorIdEditRoute: MonitorsMonitorIdEditRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
