@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MonitorsIndexRouteImport } from './routes/monitors/index'
+import { Route as MonitorsMonitorIdRouteImport } from './routes/monitors/$monitorId'
 import { Route as MonitorsNewRouteImport } from './routes/monitors/new'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const MonitorsIndexRoute = MonitorsIndexRouteImport.update({
   path: '/monitors/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MonitorsMonitorIdRoute = MonitorsMonitorIdRouteImport.update({
+  id: '/monitors/$monitorId',
+  path: '/monitors/$monitorId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MonitorsNewRoute = MonitorsNewRouteImport.update({
   id: '/monitors/new',
   path: '/monitors/new',
@@ -31,30 +37,34 @@ const MonitorsNewRoute = MonitorsNewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/monitors/$monitorId': typeof MonitorsMonitorIdRoute
   '/monitors/new': typeof MonitorsNewRoute
   '/monitors/': typeof MonitorsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/monitors/$monitorId': typeof MonitorsMonitorIdRoute
   '/monitors/new': typeof MonitorsNewRoute
   '/monitors': typeof MonitorsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/monitors/$monitorId': typeof MonitorsMonitorIdRoute
   '/monitors/new': typeof MonitorsNewRoute
   '/monitors/': typeof MonitorsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/monitors/new' | '/monitors/'
+  fullPaths: '/' | '/monitors/$monitorId' | '/monitors/new' | '/monitors/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/monitors/new' | '/monitors'
-  id: '__root__' | '/' | '/monitors/new' | '/monitors/'
+  to: '/' | '/monitors/$monitorId' | '/monitors/new' | '/monitors'
+  id: '__root__' | '/' | '/monitors/$monitorId' | '/monitors/new' | '/monitors/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  MonitorsMonitorIdRoute: typeof MonitorsMonitorIdRoute
   MonitorsNewRoute: typeof MonitorsNewRoute
   MonitorsIndexRoute: typeof MonitorsIndexRoute
 }
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MonitorsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/monitors/$monitorId': {
+      id: '/monitors/$monitorId'
+      path: '/monitors/$monitorId'
+      fullPath: '/monitors/$monitorId'
+      preLoaderRoute: typeof MonitorsMonitorIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/monitors/new': {
       id: '/monitors/new'
       path: '/monitors/new'
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  MonitorsMonitorIdRoute: MonitorsMonitorIdRoute,
   MonitorsNewRoute: MonitorsNewRoute,
   MonitorsIndexRoute: MonitorsIndexRoute,
 }
