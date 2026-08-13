@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as MonitorsIndexRouteImport } from './routes/monitors/index'
 import { Route as MonitorsMonitorIdRouteImport } from './routes/monitors/$monitorId'
 import { Route as MonitorsNewRouteImport } from './routes/monitors/new'
+import { Route as MonitorsMonitorIdEditRouteImport } from './routes/monitors/$monitorId_.edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +35,25 @@ const MonitorsNewRoute = MonitorsNewRouteImport.update({
   path: '/monitors/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MonitorsMonitorIdEditRoute = MonitorsMonitorIdEditRouteImport.update({
+  id: '/monitors/$monitorId_/edit',
+  path: '/monitors/$monitorId/edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/monitors/$monitorId': typeof MonitorsMonitorIdRoute
   '/monitors/new': typeof MonitorsNewRoute
   '/monitors/': typeof MonitorsIndexRoute
+  '/monitors/$monitorId/edit': typeof MonitorsMonitorIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/monitors/$monitorId': typeof MonitorsMonitorIdRoute
   '/monitors/new': typeof MonitorsNewRoute
   '/monitors': typeof MonitorsIndexRoute
+  '/monitors/$monitorId/edit': typeof MonitorsMonitorIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,30 @@ export interface FileRoutesById {
   '/monitors/$monitorId': typeof MonitorsMonitorIdRoute
   '/monitors/new': typeof MonitorsNewRoute
   '/monitors/': typeof MonitorsIndexRoute
+  '/monitors/$monitorId_/edit': typeof MonitorsMonitorIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/monitors/$monitorId' | '/monitors/new' | '/monitors/'
+  fullPaths:
+    | '/'
+    | '/monitors/$monitorId'
+    | '/monitors/new'
+    | '/monitors/'
+    | '/monitors/$monitorId/edit'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/monitors/$monitorId' | '/monitors/new' | '/monitors'
-  id: '__root__' | '/' | '/monitors/$monitorId' | '/monitors/new' | '/monitors/'
+  to:
+    | '/'
+    | '/monitors/$monitorId'
+    | '/monitors/new'
+    | '/monitors'
+    | '/monitors/$monitorId/edit'
+  id:
+    | '__root__'
+    | '/'
+    | '/monitors/$monitorId'
+    | '/monitors/new'
+    | '/monitors/'
+    | '/monitors/$monitorId_/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +92,7 @@ export interface RootRouteChildren {
   MonitorsMonitorIdRoute: typeof MonitorsMonitorIdRoute
   MonitorsNewRoute: typeof MonitorsNewRoute
   MonitorsIndexRoute: typeof MonitorsIndexRoute
+  MonitorsMonitorIdEditRoute: typeof MonitorsMonitorIdEditRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +125,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MonitorsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/monitors/$monitorId_/edit': {
+      id: '/monitors/$monitorId_/edit'
+      path: '/monitors/$monitorId/edit'
+      fullPath: '/monitors/$monitorId/edit'
+      preLoaderRoute: typeof MonitorsMonitorIdEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +140,7 @@ const rootRouteChildren: RootRouteChildren = {
   MonitorsMonitorIdRoute: MonitorsMonitorIdRoute,
   MonitorsNewRoute: MonitorsNewRoute,
   MonitorsIndexRoute: MonitorsIndexRoute,
+  MonitorsMonitorIdEditRoute: MonitorsMonitorIdEditRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
