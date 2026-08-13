@@ -1,13 +1,8 @@
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { CheckResult, Monitor, MonitorStatus } from "@/models";
 import { qk } from "@/lib/query/keys";
-
-/**
- * Phase 1: a mock event emitter that simulates agent check results, incident
- * state changes, and connection loss/reconnect. Phase 7 replaces the internals
- * with SignalR — the context surface and cache-update behaviour stay identical.
- */
 
 export type ConnectionState = "connecting" | "connected" | "reconnecting" | "disconnected";
 
@@ -30,6 +25,7 @@ interface RealtimeContextValue {
 const RealtimeContext = createContext<RealtimeContextValue | null>(null);
 
 const REGION_FALLBACK = "us-east";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5283").replace(/\/+$/, "");
 
 function nextStatus(current: MonitorStatus): MonitorStatus {
   if (current === "paused") return "paused";
@@ -108,11 +104,68 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   const [paused, setPaused] = useState(false);
   const [lastEventAt, setLastEventAt] = useState<string | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const connectionRef = useRef<ReturnType<HubConnectionBuilder["build"]> | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setConnection("connected"), 900);
-    return () => clearTimeout(t);
-  }, []);
+    const hubUrl = new URL("/realtime", API_BASE).toString();
+    const connectionInstance = new HubConnectionBuilder()
+      .withUrl(hubUrl)
+      .withAutomaticReconnect()
+      .configureLogging(LogLevel.Warning)
+      .build();
+
+    connectionRef.current = connectionInstance;
+
+    const handleConnect = () => {
+      setConnection("connected");
+    };
+
+    const handleReconnect = () => {
+      setConnection("reconnecting");
+    };
+
+    const handleEvent = (payload: string) => {
+      const snapshot = new Date().toISOString();
+      setLastEventAt(snapshot);
+      setEvents((prev) => [{ id: `signalr_${snapshot}`, type: "connection", timestamp: snapshot, message: payload }, ...prev].slice(0, 30));
+      if (!paused) {
+        const fallbackEvent = emitCheck(queryClient);
+        if (fallbackEvent) {
+          setLastEventAt(fallbackEvent.timestamp);
+          setEvents((prev) => [fallbackEvent, ...prev].slice(0, 30));
+        }
+      }
+    };
+
+    connectionInstance.onreconnecting(handleReconnect);
+    connectionInstance.onreconnected(handleConnect);
+    connectionInstance.onclose(() => setConnection("disconnected"));
+    connectionInstance.on("ReceiveHeartbeat", handleEvent);
+
+    connectionInstance
+      .start()
+      .then(() => {
+        setConnection("connected");
+      })
+      .catch(() => {
+        setConnection("disconnected");
+        const interval = setInterval(() => {
+          const event = emitCheck(queryClient);
+          if (!event) return;
+          setLastEventAt(event.timestamp);
+          setEvents((prev) => [event, ...prev].slice(0, 30));
+        }, 3200);
+        timers.current.push(interval);
+      });
+
+    return () => {
+      void connectionInstance.stop();
+      connectionInstance.off("ReceiveHeartbeat", handleEvent);
+      connectionInstance.offreconnecting(handleReconnect);
+      connectionInstance.offreconnected(handleConnect);
+      connectionInstance.offclose(() => setConnection("disconnected"));
+    };
+  }, [paused, queryClient]);
 
   useEffect(() => {
     if (connection !== "connected" || paused) return;
@@ -141,7 +194,8 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     [connection, lastEventAt, events, paused],
   );
 
-  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+  useEffect(() => () => timers.current.forEach((timer) => clearInterval(timer as ReturnType<typeof setInterval>)), []);
+  useEffect(() => () => timers.current.forEach((timer) => clearTimeout(timer as ReturnType<typeof setTimeout>)), []);
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;
 }

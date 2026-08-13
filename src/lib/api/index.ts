@@ -1,14 +1,9 @@
 /**
  * Single entry point for all data access.
- * Components MUST import from here (never from `mock/fixtures`), so that the
- * ASP.NET Core REST client can be swapped in behind the same signatures.
+ * Components MUST import from here, and in the connected backend phase they use
+ * the ASP.NET Core REST client behind the same service signatures.
  */
-export { agentsApi } from "./agents";
-export { dashboardApi } from "./dashboard";
-export { incidentsApi } from "./incidents";
-export { monitorsApi } from "./monitors";
-export { settingsApi } from "./settings";
-export { statusApi } from "./status";
+export { agentsApi, dashboardApi, incidentsApi, monitorsApi, settingsApi, statusApi } from "./real";
 export { ApiError, NotFoundError } from "./contracts";
 export type {
   AgentsService,
