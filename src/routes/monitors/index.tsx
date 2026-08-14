@@ -5,7 +5,7 @@ import { Plus } from "lucide-react";
 import { monitorsApi } from "@/lib/api";
 import { qk } from "@/lib/query/keys";
 import type { Monitor, MonitorStatus } from "@/models";
-import { PageHeader, RelativeTime, SampleDataNotice, CodeInline } from "@/components/common/misc";
+import { PageHeader, RelativeTime, CodeInline } from "@/components/common/misc";
 import { StatusBadge, StatusDot } from "@/components/common/status";
 import { FilterBar } from "@/components/common/FilterBar";
 import { ResponsiveDataView } from "@/components/common/ResponsiveDataView";
@@ -154,7 +154,6 @@ function MonitorsPage() {
       <PageHeader
         title="Monitors"
         description={`${monitors.length} configured checks across all regions.`}
-        meta={<SampleDataNotice />}
         actions={
           <Button asChild size="sm" className="gap-1.5">
             <Link to="/monitors/new">

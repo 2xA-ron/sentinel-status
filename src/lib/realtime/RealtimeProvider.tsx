@@ -1,4 +1,4 @@
-import { useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { HubConnectionBuilder, LogLevel } from "@microsoft/signalr";
 import {
   createContext,
@@ -9,14 +9,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { CheckResult, Monitor, MonitorStatus } from "@/models";
 import { qk } from "@/lib/query/keys";
 
 export type ConnectionState = "connecting" | "connected" | "reconnecting" | "disconnected";
 
 export interface RealtimeEvent {
   id: string;
-  type: "check" | "monitor_status" | "incident_state" | "connection";
+  type: "check" | "incident" | "connection";
   timestamp: string;
   message: string;
 }
@@ -32,86 +31,28 @@ interface RealtimeContextValue {
 
 const RealtimeContext = createContext<RealtimeContextValue | null>(null);
 
-const REGION_FALLBACK = "us-east";
 const API_BASE = (import.meta.env["VITE_API_BASE_URL"] ?? "http://localhost:5283").replace(
   /\/+$/,
   "",
 );
 
-function nextStatus(current: MonitorStatus): MonitorStatus {
-  if (current === "paused") return "paused";
-  const roll = Math.random();
-  if (current === "down") return roll > 0.7 ? "degraded" : "down";
-  if (current === "degraded") return roll > 0.75 ? "up" : "degraded";
-  if (current === "unknown") return roll > 0.5 ? "up" : "unknown";
-  return roll > 0.97 ? "degraded" : "up";
+/** Payload shape broadcast by MonitorCheckService after each real HTTP check. */
+interface CheckEventPayload {
+  monitorId: string;
+  monitorName: string;
+  success: boolean;
+  statusCode: number | null;
+  latencyMs: number;
+  regionId: string;
+  timestamp: string;
+  currentStatus: string;
 }
 
-function emitCheck(queryClient: QueryClient): RealtimeEvent | null {
-  const monitors = queryClient.getQueryData<Monitor[]>(qk.monitors());
-  if (!monitors || monitors.length === 0) return null;
-  const active = monitors.filter((m) => m.enabled);
-  const monitor = active[Math.floor(Math.random() * active.length)];
-  if (!monitor) return null;
-
-  const status = nextStatus(monitor.currentStatus);
-  const success = status === "up" || (status === "degraded" && Math.random() > 0.4);
-  const latency = Math.max(
-    12,
-    Math.round(
-      (monitor.p95LatencyMs || 150) *
-        (status === "degraded" ? 1.6 : 0.7) *
-        (0.7 + Math.random() * 0.6),
-    ),
-  );
-  const timestamp = new Date().toISOString();
-  const regionId =
-    monitor.regions[Math.floor(Math.random() * monitor.regions.length)] ?? REGION_FALLBACK;
-
-  const check: CheckResult = {
-    id: `rt_${Math.random().toString(36).slice(2, 9)}`,
-    monitorId: monitor.id,
-    regionId,
-    timestamp,
-    statusCode: success ? 200 : 503,
-    latencyMs: latency,
-    success,
-    errorType: success ? null : "status_mismatch",
-    errorMessage: success ? null : "Expected 200, received 503",
-  };
-
-  const patchMonitor = (m: Monitor): Monitor => ({
-    ...m,
-    currentStatus: status,
-    lastCheckAt: timestamp,
-    p95LatencyMs: Math.round(m.p95LatencyMs * 0.8 + latency * 0.2),
-    uptime24h: Number(
-      Math.min(100, Math.max(0, m.uptime24h + (success ? 0.004 : -0.05))).toFixed(3),
-    ),
-  });
-
-  queryClient.setQueryData<Monitor[]>(qk.monitors(), (prev) =>
-    prev?.map((m) => (m.id === monitor.id ? patchMonitor(m) : m)),
-  );
-  queryClient.setQueryData<Monitor>(qk.monitor(monitor.id), (prev) =>
-    prev ? patchMonitor(prev) : prev,
-  );
-  queryClient.setQueriesData<CheckResult[]>(
-    { queryKey: ["monitors", monitor.id, "checks"] },
-    (prev) => (prev ? [check, ...prev].slice(0, 200) : prev),
-  );
-  queryClient.setQueriesData<{ status: string; timestamp: string }[]>(
-    { queryKey: ["monitors", monitor.id, "buckets"] },
-    (prev) => (prev ? [...prev.slice(1), { status: success ? "up" : "down", timestamp }] : prev),
-  );
-  queryClient.invalidateQueries({ queryKey: ["dashboard"], refetchType: "none" });
-
-  return {
-    id: check.id,
-    type: "check",
-    timestamp,
-    message: `${monitor.name} · ${regionId} · ${success ? "200" : "503"} · ${latency}ms`,
-  };
+/** Payload shape broadcast when a check causes an incident to open/regress/recover. */
+interface IncidentEventPayload {
+  incidentId: string;
+  type: string;
+  message: string;
 }
 
 export function RealtimeProvider({ children }: { children: ReactNode }) {
@@ -121,7 +62,10 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   const [paused, setPaused] = useState(false);
   const [lastEventAt, setLastEventAt] = useState<string | null>(null);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const connectionRef = useRef<ReturnType<HubConnectionBuilder["build"]> | null>(null);
+  // Read inside SignalR handlers without needing to tear down and reconnect the
+  // hub connection every time the pause toggle flips.
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
 
   useEffect(() => {
     const hubUrl = new URL("/realtime", API_BASE).toString();
@@ -131,72 +75,86 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       .configureLogging(LogLevel.Warning)
       .build();
 
-    connectionRef.current = connectionInstance;
+    const handleReconnecting = () => setConnection("reconnecting");
+    const handleReconnected = () => setConnection("connected");
+    const handleClose = () => setConnection("disconnected");
 
-    const handleConnect = () => {
-      setConnection("connected");
+    const handleHeartbeat = (payload: string) => {
+      const timestamp = new Date().toISOString();
+      setEvents((prev) =>
+        [
+          { id: `hb_${timestamp}`, type: "connection" as const, timestamp, message: payload },
+          ...prev,
+        ].slice(0, 30),
+      );
     };
 
-    const handleReconnect = () => {
-      setConnection("reconnecting");
+    // A real check just happened server-side — refresh whatever the UI has
+    // cached for that monitor (and the aggregate views) instead of trying to
+    // predict the new numbers client-side.
+    const handleCheckEvent = (payload: CheckEventPayload) => {
+      if (pausedRef.current) return;
+      setLastEventAt(payload.timestamp);
+      setEvents((prev) =>
+        [
+          {
+            id: `check_${payload.monitorId}_${payload.timestamp}`,
+            type: "check" as const,
+            timestamp: payload.timestamp,
+            message: `${payload.monitorName} · ${payload.regionId} · ${payload.statusCode ?? "—"} · ${payload.latencyMs}ms`,
+          },
+          ...prev,
+        ].slice(0, 30),
+      );
+
+      void queryClient.invalidateQueries({ queryKey: qk.monitors() });
+      void queryClient.invalidateQueries({ queryKey: qk.monitor(payload.monitorId) });
+      void queryClient.invalidateQueries({ queryKey: qk.dashboardSummary() });
+      void queryClient.invalidateQueries({ queryKey: qk.dashboardEvents() });
+      void queryClient.invalidateQueries({ queryKey: qk.status() });
     };
 
-    const handleEvent = (payload: string) => {
-      const snapshot = new Date().toISOString();
-      const heartbeatEvent: RealtimeEvent = {
-        id: `signalr_${snapshot}`,
-        type: "connection",
-        timestamp: snapshot,
-        message: payload,
-      };
-      setLastEventAt(snapshot);
-      setEvents((prev) => [heartbeatEvent, ...prev].slice(0, 30));
-      if (!paused) {
-        const fallbackEvent = emitCheck(queryClient);
-        if (fallbackEvent) {
-          setLastEventAt(fallbackEvent.timestamp);
-          setEvents((prev) => [fallbackEvent, ...prev].slice(0, 30));
-        }
-      }
+    const handleIncidentEvent = (payload: IncidentEventPayload) => {
+      if (pausedRef.current) return;
+      const timestamp = new Date().toISOString();
+      setLastEventAt(timestamp);
+      setEvents((prev) =>
+        [
+          {
+            id: `incident_${payload.incidentId}_${timestamp}`,
+            type: "incident" as const,
+            timestamp,
+            message: payload.message,
+          },
+          ...prev,
+        ].slice(0, 30),
+      );
+
+      void queryClient.invalidateQueries({ queryKey: qk.incidents() });
+      void queryClient.invalidateQueries({ queryKey: qk.dashboardSummary() });
+      void queryClient.invalidateQueries({ queryKey: qk.dashboardEvents() });
+      void queryClient.invalidateQueries({ queryKey: qk.status() });
     };
 
-    connectionInstance.onreconnecting(handleReconnect);
-    connectionInstance.onreconnected(handleConnect);
-    connectionInstance.onclose(() => setConnection("disconnected"));
-    connectionInstance.on("ReceiveHeartbeat", handleEvent);
+    connectionInstance.onreconnecting(handleReconnecting);
+    connectionInstance.onreconnected(handleReconnected);
+    connectionInstance.onclose(handleClose);
+    connectionInstance.on("ReceiveHeartbeat", handleHeartbeat);
+    connectionInstance.on("ReceiveCheckEvent", handleCheckEvent);
+    connectionInstance.on("ReceiveIncidentEvent", handleIncidentEvent);
 
     connectionInstance
       .start()
-      .then(() => {
-        setConnection("connected");
-      })
-      .catch(() => {
-        setConnection("disconnected");
-        const interval = setInterval(() => {
-          const event = emitCheck(queryClient);
-          if (!event) return;
-          setLastEventAt(event.timestamp);
-          setEvents((prev) => [event, ...prev].slice(0, 30));
-        }, 3200);
-        timers.current.push(interval);
-      });
+      .then(() => setConnection("connected"))
+      .catch(() => setConnection("disconnected"));
 
     return () => {
-      connectionInstance.off("ReceiveHeartbeat", handleEvent);
+      connectionInstance.off("ReceiveHeartbeat", handleHeartbeat);
+      connectionInstance.off("ReceiveCheckEvent", handleCheckEvent);
+      connectionInstance.off("ReceiveIncidentEvent", handleIncidentEvent);
       void connectionInstance.stop();
     };
-  }, [paused, queryClient]);
-
-  useEffect(() => {
-    if (connection !== "connected" || paused) return;
-    const interval = setInterval(() => {
-      const event = emitCheck(queryClient);
-      if (!event) return;
-      setLastEventAt(event.timestamp);
-      setEvents((prev) => [event, ...prev].slice(0, 30));
-    }, 3200);
-    return () => clearInterval(interval);
-  }, [connection, paused, queryClient]);
+  }, [queryClient]);
 
   const value = useMemo<RealtimeContextValue>(
     () => ({
@@ -214,16 +172,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     [connection, lastEventAt, events, paused],
   );
 
-  useEffect(
-    () => () =>
-      timers.current.forEach((timer) => clearInterval(timer as ReturnType<typeof setInterval>)),
-    [],
-  );
-  useEffect(
-    () => () =>
-      timers.current.forEach((timer) => clearTimeout(timer as ReturnType<typeof setTimeout>)),
-    [],
-  );
+  useEffect(() => () => timers.current.forEach((timer) => clearTimeout(timer)), []);
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;
 }

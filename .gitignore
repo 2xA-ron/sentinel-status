@@ -36,3 +36,8 @@ dist-ssr
 
 backend/**/bin/
 backend/**/obj/
+
+# Real monitor/check/incident data — a runtime artifact, not something to ship or commit.
+backend/SentinelOps.Api/*.db
+backend/SentinelOps.Api/*.db-shm
+backend/SentinelOps.Api/*.db-wal

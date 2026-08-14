@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { statusApi } from "@/lib/api";
 import { qk } from "@/lib/query/keys";
-import { PageHeader, RelativeTime, SampleDataNotice } from "@/components/common/misc";
+import { PageHeader, RelativeTime } from "@/components/common/misc";
 import { StatusBadge, SeverityTag, IncidentStateBadge } from "@/components/common/status";
 import { UptimeBar } from "@/components/common/UptimeBar";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/common/states";
@@ -52,7 +52,6 @@ function StatusPage() {
           <>
             <StatusBadge status={data.overall} />
             <RelativeTime value={data.updatedAt} prefix="updated" />
-            <SampleDataNotice />
           </>
         }
       />
