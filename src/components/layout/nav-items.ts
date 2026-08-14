@@ -20,5 +20,10 @@ export const navItems: NavItem[] = [
   { to: "/incidents", label: "Incidents", icon: AlertTriangle, description: "Active and resolved" },
   { to: "/agents", label: "Agents", icon: Server, description: "Regions and agents preview" },
   { to: "/status", label: "Status page", icon: Globe, description: "Public status preview" },
-  { to: "/settings", label: "Settings", icon: SettingsIcon, description: "Defaults and appearance" },
+  {
+    to: "/settings",
+    label: "Settings",
+    icon: SettingsIcon,
+    description: "Defaults and appearance",
+  },
 ];

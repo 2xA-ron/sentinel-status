@@ -30,7 +30,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { formatClock, formatInterval, formatMs, formatPercent, formatTimestamp } from "@/utils/format";
+import {
+  formatClock,
+  formatInterval,
+  formatMs,
+  formatPercent,
+  formatTimestamp,
+} from "@/utils/format";
 
 export const Route = createFileRoute("/monitors/$monitorId")({
   head: () => ({
@@ -110,7 +116,7 @@ function MonitorDetailPage() {
 
   if (monitorQuery.isLoading) {
     return (
-      <div className="mx-auto w-full max-w-[1400px] space-y-4">
+      <div className="mx-auto w-full max-w-350 space-y-4">
         <SkeletonTiles count={4} />
         <SkeletonChart />
       </div>
@@ -138,7 +144,7 @@ function MonitorDetailPage() {
   }));
 
   return (
-    <div className="mx-auto w-full max-w-[1400px]">
+    <div className="mx-auto w-full max-w-350">
       <PageHeader
         title={monitor.name}
         description={monitor.url}
@@ -230,7 +236,11 @@ function MonitorDetailPage() {
                     <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid stroke="var(--color-border)" strokeDasharray="2 4" vertical={false} />
+                <CartesianGrid
+                  stroke="var(--color-border)"
+                  strokeDasharray="2 4"
+                  vertical={false}
+                />
                 <XAxis
                   dataKey="time"
                   tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }}
@@ -307,7 +317,10 @@ function MonitorDetailPage() {
                     .slice(0, 200)
                     .map((c) => (
                       <tr key={c.id} className="border-border border-b last:border-b-0">
-                        <td className="px-3 py-1.5 whitespace-nowrap" title={formatTimestamp(c.timestamp)}>
+                        <td
+                          className="px-3 py-1.5 whitespace-nowrap"
+                          title={formatTimestamp(c.timestamp)}
+                        >
                           {formatClock(c.timestamp)}
                         </td>
                         <td className="px-3 py-1.5">{c.regionId}</td>
@@ -418,7 +431,7 @@ function ConfigRow({ label, value }: { label: string; value: React.ReactNode }) 
   return (
     <div className="min-w-0">
       <dt className="text-muted-foreground text-[11px] tracking-wide uppercase">{label}</dt>
-      <dd className="mt-0.5 break-words">{value}</dd>
+      <dd className="mt-0.5 wrap-break-word">{value}</dd>
     </div>
   );
 }

@@ -23,7 +23,10 @@ export const Route = createFileRoute("/settings")({
         content: "Monitoring defaults, appearance, realtime simulation and notification channels.",
       },
       { property: "og:title", content: "Settings — SentinelOps" },
-      { property: "og:description", content: "Monitoring defaults, appearance and notification channels." },
+      {
+        property: "og:description",
+        content: "Monitoring defaults, appearance and notification channels.",
+      },
     ],
   }),
   component: SettingsPage,

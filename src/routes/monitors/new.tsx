@@ -14,7 +14,8 @@ export const Route = createFileRoute("/monitors/new")({
       { title: "New monitor — SentinelOps" },
       {
         name: "description",
-        content: "Configure a new HTTP uptime check: URL, interval, regions, assertions and alerts.",
+        content:
+          "Configure a new HTTP uptime check: URL, interval, regions, assertions and alerts.",
       },
       { property: "og:title", content: "New monitor — SentinelOps" },
       {
@@ -43,7 +44,8 @@ function NewMonitorPage() {
       toast.success(`Monitor "${monitor.name}" created`);
       void navigate({ to: "/monitors/$monitorId", params: { monitorId: monitor.id } });
     },
-    onError: (error: Error) => toast.error("Couldn't create monitor", { description: error.message }),
+    onError: (error: Error) =>
+      toast.error("Couldn't create monitor", { description: error.message }),
   });
 
   const initial = emptyMonitorInput({

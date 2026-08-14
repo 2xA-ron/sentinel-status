@@ -98,7 +98,7 @@ function IncidentDetailPage() {
   const resolved = incident.state === "resolved";
 
   return (
-    <div className="mx-auto w-full max-w-[1200px]">
+    <div className="mx-auto w-full max-w-300">
       <PageHeader
         title={incident.title}
         description={
@@ -131,7 +131,11 @@ function IncidentDetailPage() {
             >
               Acknowledge
             </Button>
-            <Button size="sm" disabled={resolved || resolveMutation.isPending} onClick={() => resolveMutation.mutate()}>
+            <Button
+              size="sm"
+              disabled={resolved || resolveMutation.isPending}
+              onClick={() => resolveMutation.mutate()}
+            >
               Resolve
             </Button>
           </>
@@ -151,7 +155,11 @@ function IncidentDetailPage() {
           tone={resolved ? "up" : "down"}
         />
         <MetricTile label="Failed checks" value={incident.failedCheckCount} />
-        <MetricTile label="Regions" value={incident.affectedRegions.length} hint={incident.affectedRegions.join(", ")} />
+        <MetricTile
+          label="Regions"
+          value={incident.affectedRegions.length}
+          hint={incident.affectedRegions.join(", ")}
+        />
         <MetricTile
           label="Acknowledged by"
           value={<span className="text-base">{incident.acknowledgedBy ?? "—"}</span>}

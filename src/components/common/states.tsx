@@ -33,9 +33,7 @@ export function EmptyState({
         aria-hidden
       />
       <p className="text-sm font-medium">{title}</p>
-      {description ? (
-        <p className="text-muted-foreground max-w-sm text-xs">{description}</p>
-      ) : null}
+      {description ? <p className="text-muted-foreground max-w-sm text-xs">{description}</p> : null}
       {action ? <div className="mt-2">{action}</div> : null}
     </div>
   );
@@ -67,7 +65,7 @@ export function ErrorState({
       <div className="min-w-0 flex-1">
         <p className="font-medium">{title}</p>
         {description ? (
-          <p className="text-muted-foreground mt-0.5 text-xs break-words">{description}</p>
+          <p className="text-muted-foreground mt-0.5 text-xs wrap-break-word">{description}</p>
         ) : null}
       </div>
       {onRetry ? (
@@ -102,14 +100,13 @@ export function LoadingSkeleton({ rows = 6, columns = 5 }: { rows?: number; colu
 
 export function SkeletonChart({ className }: { className?: string }) {
   return (
-    <div className={cn("panel flex h-56 flex-col justify-end gap-2 p-3", className)} aria-busy="true">
+    <div
+      className={cn("panel flex h-56 flex-col justify-end gap-2 p-3", className)}
+      aria-busy="true"
+    >
       <div className="flex flex-1 items-end gap-1">
         {Array.from({ length: 28 }).map((_, i) => (
-          <Skeleton
-            key={i}
-            className="flex-1"
-            style={{ height: `${25 + ((i * 37) % 65)}%` }}
-          />
+          <Skeleton key={i} className="flex-1" style={{ height: `${25 + ((i * 37) % 65)}%` }} />
         ))}
       </div>
       <Skeleton className="h-3 w-full" />

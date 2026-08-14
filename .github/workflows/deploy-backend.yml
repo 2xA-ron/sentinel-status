@@ -1,0 +1,37 @@
+name: Deploy backend (Cloud Run)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      # `gcloud run deploy` reuses env vars, memory/CPU, etc. from the
+      # previously deployed revision when they aren't passed explicitly, so
+      # FRONTEND_ORIGINS set manually per backend/DEPLOY.md carries forward.
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy sentinelops-api \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --source backend/SentinelOps.Api \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --quiet

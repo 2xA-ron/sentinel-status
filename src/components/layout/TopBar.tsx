@@ -54,13 +54,22 @@ export function TopBar({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setPreference("light")} data-active={preference === "light"}>
+          <DropdownMenuItem
+            onClick={() => setPreference("light")}
+            data-active={preference === "light"}
+          >
             <Sun className="size-4" aria-hidden /> Light
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setPreference("dark")} data-active={preference === "dark"}>
+          <DropdownMenuItem
+            onClick={() => setPreference("dark")}
+            data-active={preference === "dark"}
+          >
             <Moon className="size-4" aria-hidden /> Dark
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setPreference("system")} data-active={preference === "system"}>
+          <DropdownMenuItem
+            onClick={() => setPreference("system")}
+            data-active={preference === "system"}
+          >
             <Laptop className="size-4" aria-hidden /> System
           </DropdownMenuItem>
         </DropdownMenuContent>

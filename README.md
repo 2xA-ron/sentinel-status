@@ -2,6 +2,47 @@
 
 # SentinelOps — Frontend Plan (Phase 1, no backend)
 
+## Cloudflare / Nitro deployment prep
+
+The app is already set up to build with the Nitro Cloudflare preset used by TanStack Start.
+
+### Required environment variable
+
+Create a local `.env` file from `.env.example` before running the app against a real deployed API:
+
+```bash
+cp .env.example .env
+```
+
+Set the deployed backend URL in `.env`:
+
+```bash
+VITE_API_BASE_URL=https://api.example.com
+```
+
+For local development, the default remains `http://localhost:5283` when the variable is not set.
+
+### Deploy to Cloudflare
+
+```bash
+npm run deploy:cloudflare
+```
+
+This builds the Nitro output and deploys the generated worker config from `.output/server/wrangler.json`.
+
+### Local Cloudflare preview
+
+```bash
+npm run preview:cloudflare
+```
+
+### Backend deployment (Cloud Run, free tier)
+
+The ASP.NET Core API + SignalR hub in `backend/SentinelOps.Api` deploys to
+Google Cloud Run, with Cloudflare (DNS/proxy) sitting in front of both it and
+the frontend. See [`backend/DEPLOY.md`](backend/DEPLOY.md) for the exact
+commands.
+
 A developer-focused uptime monitoring and incident management UI. This phase builds the complete frontend against a typed mock API layer designed to be swapped for the ASP.NET Core API + SignalR later.
 
 ## Phase 1 guardrails

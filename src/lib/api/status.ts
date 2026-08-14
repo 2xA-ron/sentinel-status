@@ -20,7 +20,10 @@ function buildStatus(): StatusPageData {
         };
       });
       const last = history[history.length - 1];
-      if (last && (m.currentStatus === "up" || m.currentStatus === "degraded" || m.currentStatus === "down")) {
+      if (
+        last &&
+        (m.currentStatus === "up" || m.currentStatus === "degraded" || m.currentStatus === "down")
+      ) {
         last.status = m.currentStatus;
       }
       const availability90d =

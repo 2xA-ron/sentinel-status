@@ -14,7 +14,8 @@ export const Route = createFileRoute("/monitors/$monitorId_/edit")({
       { title: "Edit monitor — SentinelOps" },
       {
         name: "description",
-        content: "Update request settings, schedule, regions, assertions and alerting for a monitor.",
+        content:
+          "Update request settings, schedule, regions, assertions and alerting for a monitor.",
       },
       { property: "og:title", content: "Edit monitor — SentinelOps" },
       {

@@ -42,6 +42,7 @@ export const Route = createFileRoute("/monitors/")({
 });
 
 const STATUSES: MonitorStatus[] = ["up", "degraded", "down", "paused", "unknown"];
+const EMPTY_MONITORS: Monitor[] = [];
 
 function MonitorsPage() {
   const navigate = useNavigate();
@@ -55,7 +56,7 @@ function MonitorsPage() {
     queryFn: () => monitorsApi.list(),
   });
 
-  const monitors = data ?? [];
+  const monitors = data ?? EMPTY_MONITORS;
   const tags = useMemo(
     () => Array.from(new Set(monitors.flatMap((m) => m.tags))).sort(),
     [monitors],
@@ -63,8 +64,7 @@ function MonitorsPage() {
 
   const filtered = monitors.filter((m) => {
     const q = search.trim().toLowerCase();
-    const matchesSearch =
-      !q || m.name.toLowerCase().includes(q) || m.url.toLowerCase().includes(q);
+    const matchesSearch = !q || m.name.toLowerCase().includes(q) || m.url.toLowerCase().includes(q);
     const matchesStatus = status === "all" || m.currentStatus === status;
     const matchesTag = tag === "all" || m.tags.includes(tag);
     return matchesSearch && matchesStatus && matchesTag;
@@ -150,7 +150,7 @@ function MonitorsPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1400px]">
+    <div className="mx-auto w-full max-w-350">
       <PageHeader
         title="Monitors"
         description={`${monitors.length} configured checks across all regions.`}

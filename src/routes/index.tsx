@@ -5,9 +5,19 @@ import { Activity, AlertTriangle, ArrowRight, Gauge, Timer, TrendingDown } from 
 import { Suspense } from "react";
 import { dashboardApi, monitorsApi, incidentsApi } from "@/lib/api";
 import { qk } from "@/lib/query/keys";
-import { PageHeader, RelativeTime, SampleDataNotice, DurationLabel } from "@/components/common/misc";
+import {
+  PageHeader,
+  RelativeTime,
+  SampleDataNotice,
+  DurationLabel,
+} from "@/components/common/misc";
 import { MetricTile } from "@/components/common/MetricTile";
-import { StatusDot, StatusBadge, SeverityTag, IncidentStateBadge } from "@/components/common/status";
+import {
+  StatusDot,
+  StatusBadge,
+  SeverityTag,
+  IncidentStateBadge,
+} from "@/components/common/status";
 import { UptimeBar } from "@/components/common/UptimeBar";
 import { EmptyState, ErrorState, SkeletonTiles, LoadingSkeleton } from "@/components/common/states";
 import { RealtimeConnectionIndicator } from "@/components/common/RealtimeConnectionIndicator";
@@ -35,8 +45,13 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  loader: ({ context }) => {
-    void context.queryClient.ensureQueryData(summaryQuery);
+  loader: async ({ context }) => {
+    // Awaited (not fire-and-forget) so the summary is part of the synchronous
+    // SSR payload: AppShell's sidebar badge reads this same query key outside
+    // any Suspense boundary, so if it streamed in after the initial response
+    // instead, the server HTML and the client's first hydration pass would
+    // disagree on whether the badge is there yet.
+    await context.queryClient.ensureQueryData(summaryQuery);
   },
   component: DashboardPage,
   errorComponent: ({ error }) => <ErrorState description={error.message} />,
@@ -44,7 +59,7 @@ export const Route = createFileRoute("/")({
 
 function DashboardPage() {
   return (
-    <div className="mx-auto w-full max-w-[1400px]">
+    <div className="mx-auto w-full max-w-350">
       <PageHeader
         title="Dashboard"
         description="Global health across every monitored endpoint."
@@ -134,7 +149,11 @@ function ActiveIncidentsPanel() {
       {isLoading ? (
         <LoadingSkeleton rows={3} columns={4} />
       ) : isError ? (
-        <ErrorState description={(error as Error).message} onRetry={() => void refetch()} className="m-3" />
+        <ErrorState
+          description={(error as Error).message}
+          onRetry={() => void refetch()}
+          className="m-3"
+        />
       ) : active.length === 0 ? (
         <EmptyState
           variant="all-clear"
@@ -171,7 +190,10 @@ function AttentionPanel() {
 
   const rank: Record<string, number> = { down: 0, degraded: 1, unknown: 2, up: 3, paused: 4 };
   const monitors = [...(data ?? [])]
-    .sort((a, b) => (rank[a.currentStatus] ?? 9) - (rank[b.currentStatus] ?? 9) || a.uptime24h - b.uptime24h)
+    .sort(
+      (a, b) =>
+        (rank[a.currentStatus] ?? 9) - (rank[b.currentStatus] ?? 9) || a.uptime24h - b.uptime24h,
+    )
     .slice(0, 6);
 
   return (
@@ -180,7 +202,11 @@ function AttentionPanel() {
       {isLoading ? (
         <LoadingSkeleton rows={4} columns={4} />
       ) : isError ? (
-        <ErrorState description={(error as Error).message} onRetry={() => void refetch()} className="m-3" />
+        <ErrorState
+          description={(error as Error).message}
+          onRetry={() => void refetch()}
+          className="m-3"
+        />
       ) : monitors.length === 0 ? (
         <EmptyState
           title="No monitors yet"
@@ -231,7 +257,7 @@ function EventFeedPanel() {
   };
 
   return (
-    <section className="panel flex max-h-[540px] flex-col">
+    <section className="panel flex max-h-135 flex-col">
       <div className="border-border flex items-center justify-between border-b px-3 py-2">
         <h2 className="text-sm font-semibold">Live activity</h2>
         <RealtimeConnectionIndicator compact />
@@ -240,7 +266,11 @@ function EventFeedPanel() {
         {isLoading ? (
           <LoadingSkeleton rows={8} columns={2} />
         ) : isError ? (
-          <ErrorState description={(error as Error).message} onRetry={() => void refetch()} className="m-3" />
+          <ErrorState
+            description={(error as Error).message}
+            onRetry={() => void refetch()}
+            className="m-3"
+          />
         ) : (data ?? []).length === 0 ? (
           <EmptyState title="No recent activity" />
         ) : (
@@ -254,7 +284,7 @@ function EventFeedPanel() {
                     <Activity className="size-3.5" />
                   )}
                 </span>
-                <span className="min-w-0 flex-1 break-words">{e.message}</span>
+                <span className="min-w-0 flex-1 wrap-break-word">{e.message}</span>
                 <RelativeTime value={e.timestamp} className="shrink-0 text-[11px]" />
               </li>
             ))}

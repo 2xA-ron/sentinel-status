@@ -12,10 +12,14 @@ export const Route = createFileRoute("/agents")({
       { title: "Agents — SentinelOps" },
       {
         name: "description",
-        content: "Regional checking agents: version, heartbeat, throughput and health (read-only preview).",
+        content:
+          "Regional checking agents: version, heartbeat, throughput and health (read-only preview).",
       },
       { property: "og:title", content: "Agents — SentinelOps" },
-      { property: "og:description", content: "Regional checking agents and their heartbeat health." },
+      {
+        property: "og:description",
+        content: "Regional checking agents and their heartbeat health.",
+      },
     ],
   }),
   component: AgentsPage,
@@ -29,7 +33,7 @@ function AgentsPage() {
   });
 
   return (
-    <div className="mx-auto w-full max-w-[1200px]">
+    <div className="mx-auto w-full max-w-300">
       <PageHeader
         title="Agents"
         description="Read-only preview of the regional checking fleet."

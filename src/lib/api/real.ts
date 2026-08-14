@@ -12,11 +12,25 @@ import type {
   TimeRange,
   UptimeWindow,
 } from "@/models";
-import { ApiError, NotFoundError, type AgentsService, type DashboardService, type IncidentsService, type MonitorListQuery, type MonitorsService, type SettingsService } from "./contracts";
+import {
+  ApiError,
+  NotFoundError,
+  type AgentsService,
+  type DashboardService,
+  type IncidentsService,
+  type MonitorListQuery,
+  type MonitorsService,
+  type SettingsService,
+} from "./contracts";
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5283").replace(/\/+$/, "");
+const API_BASE = (import.meta.env["VITE_API_BASE_URL"] ?? "http://localhost:5283").replace(
+  /\/+$/,
+  "",
+);
 
-function buildQueryString(query?: Record<string, string | number | boolean | string[] | undefined>) {
+function buildQueryString(
+  query?: Record<string, string | number | boolean | string[] | undefined>,
+) {
   const params = new URLSearchParams();
   if (!query) return "";
 
@@ -60,7 +74,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return parsed as T;
 }
 
-function monitorListQueryToParams(query?: MonitorListQuery): Record<string, string | string[] | undefined> {
+function monitorListQueryToParams(
+  query?: MonitorListQuery,
+): Record<string, string | string[] | undefined> {
   if (!query) return {};
   return {
     search: query.search,
@@ -100,10 +116,14 @@ export const monitorsApi: MonitorsService = {
     await request<void>(`/api/monitors/${encodeURIComponent(id)}`, { method: "DELETE" });
   },
   async checks(id, range) {
-    return request<CheckResult[]>(`/api/monitors/${encodeURIComponent(id)}/checks?range=${encodeURIComponent(range)}`);
+    return request<CheckResult[]>(
+      `/api/monitors/${encodeURIComponent(id)}/checks?range=${encodeURIComponent(range)}`,
+    );
   },
   async uptime(id, range) {
-    return request<UptimeWindow>(`/api/monitors/${encodeURIComponent(id)}/uptime?range=${encodeURIComponent(range)}`);
+    return request<UptimeWindow>(
+      `/api/monitors/${encodeURIComponent(id)}/uptime?range=${encodeURIComponent(range)}`,
+    );
   },
   async incidents(id) {
     return request<Incident[]>(`/api/monitors/${encodeURIComponent(id)}/incidents`);
@@ -162,7 +182,9 @@ export const dashboardApi: DashboardService = {
     return request<DashboardSummary>("/api/dashboard/summary");
   },
   async events(limit = 20) {
-    return request<EventFeedItem[]>(`/api/dashboard/events?limit=${encodeURIComponent(String(limit))}`);
+    return request<EventFeedItem[]>(
+      `/api/dashboard/events?limit=${encodeURIComponent(String(limit))}`,
+    );
   },
 };
 

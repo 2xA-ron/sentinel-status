@@ -110,8 +110,7 @@ export function SampleDataNotice({ className }: { className?: string }) {
         className,
       )}
     >
-      Sample data — deterministic development fixtures served by the local mock API. Not real
-      production telemetry.
+      Sample data — deterministic seed data for development. Not real production telemetry.
     </p>
   );
 }

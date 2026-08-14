@@ -22,9 +22,7 @@ function NotFoundComponent() {
       <div className="max-w-md text-center">
         <h1 className="text-primary font-mono text-6xl font-bold">404</h1>
         <h2 className="mt-4 text-lg font-semibold">Page not found</h2>
-        <p className="text-muted-foreground mt-2 text-sm">
-          That route isn't part of SentinelOps.
-        </p>
+        <p className="text-muted-foreground mt-2 text-sm">That route isn't part of SentinelOps.</p>
         <div className="mt-6">
           <Link
             to="/"
@@ -49,7 +47,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     <div className="flex min-h-[60vh] items-center justify-center px-4">
       <div className="max-w-md text-center">
         <h1 className="text-lg font-semibold tracking-tight">This page didn't load</h1>
-        <p className="text-muted-foreground mt-2 font-mono text-xs break-words">{error.message}</p>
+        <p className="text-muted-foreground mt-2 font-mono text-xs wrap-break-word">
+          {error.message}
+        </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {

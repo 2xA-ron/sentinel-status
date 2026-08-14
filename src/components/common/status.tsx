@@ -3,34 +3,36 @@ import type { IncidentSeverity, IncidentState, MonitorStatus } from "@/models";
 import { cn } from "@/lib/utils";
 import { severityLabel, statusLabel } from "@/utils/format";
 
-const statusStyles: Record<MonitorStatus, { dot: string; chip: string; Icon: typeof CheckCircle2 }> =
-  {
-    up: {
-      dot: "bg-status-up",
-      chip: "bg-status-up-soft text-status-up border-status-up/30",
-      Icon: CheckCircle2,
-    },
-    degraded: {
-      dot: "bg-status-degraded",
-      chip: "bg-status-degraded-soft text-status-degraded border-status-degraded/30",
-      Icon: AlertTriangle,
-    },
-    down: {
-      dot: "bg-status-down",
-      chip: "bg-status-down-soft text-status-down border-status-down/30",
-      Icon: XCircle,
-    },
-    paused: {
-      dot: "bg-status-paused",
-      chip: "bg-status-paused-soft text-status-paused border-status-paused/30",
-      Icon: PauseCircle,
-    },
-    unknown: {
-      dot: "bg-status-unknown",
-      chip: "bg-status-unknown-soft text-status-unknown border-status-unknown/30",
-      Icon: CircleHelp,
-    },
-  };
+const statusStyles: Record<
+  MonitorStatus,
+  { dot: string; chip: string; Icon: typeof CheckCircle2 }
+> = {
+  up: {
+    dot: "bg-status-up",
+    chip: "bg-status-up-soft text-status-up border-status-up/30",
+    Icon: CheckCircle2,
+  },
+  degraded: {
+    dot: "bg-status-degraded",
+    chip: "bg-status-degraded-soft text-status-degraded border-status-degraded/30",
+    Icon: AlertTriangle,
+  },
+  down: {
+    dot: "bg-status-down",
+    chip: "bg-status-down-soft text-status-down border-status-down/30",
+    Icon: XCircle,
+  },
+  paused: {
+    dot: "bg-status-paused",
+    chip: "bg-status-paused-soft text-status-paused border-status-paused/30",
+    Icon: PauseCircle,
+  },
+  unknown: {
+    dot: "bg-status-unknown",
+    chip: "bg-status-unknown-soft text-status-unknown border-status-unknown/30",
+    Icon: CircleHelp,
+  },
+};
 
 export function StatusDot({
   status,
@@ -56,7 +58,9 @@ export function StatusDot({
           )}
         />
       ) : null}
-      <span className={cn("relative inline-flex size-2.5 rounded-full", statusStyles[status].dot)} />
+      <span
+        className={cn("relative inline-flex size-2.5 rounded-full", statusStyles[status].dot)}
+      />
     </span>
   );
 }

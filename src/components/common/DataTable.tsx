@@ -137,11 +137,7 @@ export function DataTable<T>({
   );
 }
 
-export function applySort<T>(
-  rows: T[],
-  columns: Column<T>[],
-  sort: SortState | undefined,
-): T[] {
+export function applySort<T>(rows: T[], columns: Column<T>[], sort: SortState | undefined): T[] {
   if (!sort) return rows;
   const col = columns.find((c) => c.id === sort.columnId);
   if (!col?.sortValue) return rows;

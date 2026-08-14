@@ -22,7 +22,10 @@ export function LatencySparkline({
   const span = Math.max(1, max - min);
   const step = width / (values.length - 1);
   const points = values
-    .map((v, i) => `${(i * step).toFixed(2)},${(height - ((v - min) / span) * (height - 2) - 1).toFixed(2)}`)
+    .map(
+      (v, i) =>
+        `${(i * step).toFixed(2)},${(height - ((v - min) / span) * (height - 2) - 1).toFixed(2)}`,
+    )
     .join(" ");
 
   const stroke =
