@@ -44,7 +44,7 @@ function StatusPage() {
     );
 
   return (
-    <div className="mx-auto w-full max-w-[1000px]">
+    <div className="mx-auto w-full max-w-250">
       <PageHeader
         title="Status page"
         description="Preview of the customer-facing status page."

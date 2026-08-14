@@ -150,7 +150,7 @@ function MonitorsPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1400px]">
+    <div className="mx-auto w-full max-w-350">
       <PageHeader
         title="Monitors"
         description={`${monitors.length} configured checks across all regions.`}

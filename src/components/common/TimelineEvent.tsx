@@ -57,7 +57,7 @@ export function TimelineEvent({
             {relativeTime(event.timestamp)}
           </time>
         </div>
-        <p className="text-muted-foreground mt-0.5 text-xs break-words">{event.message}</p>
+        <p className="text-muted-foreground mt-0.5 text-xs wrap-break-word">{event.message}</p>
       </div>
     </li>
   );

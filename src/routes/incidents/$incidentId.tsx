@@ -98,7 +98,7 @@ function IncidentDetailPage() {
   const resolved = incident.state === "resolved";
 
   return (
-    <div className="mx-auto w-full max-w-[1200px]">
+    <div className="mx-auto w-full max-w-300">
       <PageHeader
         title={incident.title}
         description={

@@ -65,7 +65,7 @@ export function ErrorState({
       <div className="min-w-0 flex-1">
         <p className="font-medium">{title}</p>
         {description ? (
-          <p className="text-muted-foreground mt-0.5 text-xs break-words">{description}</p>
+          <p className="text-muted-foreground mt-0.5 text-xs wrap-break-word">{description}</p>
         ) : null}
       </div>
       {onRetry ? (

@@ -59,7 +59,7 @@ export const Route = createFileRoute("/")({
 
 function DashboardPage() {
   return (
-    <div className="mx-auto w-full max-w-[1400px]">
+    <div className="mx-auto w-full max-w-350">
       <PageHeader
         title="Dashboard"
         description="Global health across every monitored endpoint."
@@ -257,7 +257,7 @@ function EventFeedPanel() {
   };
 
   return (
-    <section className="panel flex max-h-[540px] flex-col">
+    <section className="panel flex max-h-135 flex-col">
       <div className="border-border flex items-center justify-between border-b px-3 py-2">
         <h2 className="text-sm font-semibold">Live activity</h2>
         <RealtimeConnectionIndicator compact />
@@ -284,7 +284,7 @@ function EventFeedPanel() {
                     <Activity className="size-3.5" />
                   )}
                 </span>
-                <span className="min-w-0 flex-1 break-words">{e.message}</span>
+                <span className="min-w-0 flex-1 wrap-break-word">{e.message}</span>
                 <RelativeTime value={e.timestamp} className="shrink-0 text-[11px]" />
               </li>
             ))}

@@ -33,7 +33,7 @@ function AgentsPage() {
   });
 
   return (
-    <div className="mx-auto w-full max-w-[1200px]">
+    <div className="mx-auto w-full max-w-300">
       <PageHeader
         title="Agents"
         description="Read-only preview of the regional checking fleet."

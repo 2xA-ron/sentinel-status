@@ -135,7 +135,7 @@ function IncidentsPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1400px]">
+    <div className="mx-auto w-full max-w-350">
       <PageHeader
         title="Incidents"
         description="Detection, acknowledgement and resolution across all monitors."

@@ -116,7 +116,7 @@ function MonitorDetailPage() {
 
   if (monitorQuery.isLoading) {
     return (
-      <div className="mx-auto w-full max-w-[1400px] space-y-4">
+      <div className="mx-auto w-full max-w-350 space-y-4">
         <SkeletonTiles count={4} />
         <SkeletonChart />
       </div>
@@ -144,7 +144,7 @@ function MonitorDetailPage() {
   }));
 
   return (
-    <div className="mx-auto w-full max-w-[1400px]">
+    <div className="mx-auto w-full max-w-350">
       <PageHeader
         title={monitor.name}
         description={monitor.url}
@@ -431,7 +431,7 @@ function ConfigRow({ label, value }: { label: string; value: React.ReactNode }) 
   return (
     <div className="min-w-0">
       <dt className="text-muted-foreground text-[11px] tracking-wide uppercase">{label}</dt>
-      <dd className="mt-0.5 break-words">{value}</dd>
+      <dd className="mt-0.5 wrap-break-word">{value}</dd>
     </div>
   );
 }
