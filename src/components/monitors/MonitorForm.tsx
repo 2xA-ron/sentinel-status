@@ -159,10 +159,7 @@ export function MonitorForm({
             />
           </Field>
           <Field label="Method" htmlFor="method">
-            <Select
-              value={values.method}
-              onValueChange={(v) => patch({ method: v as HttpMethod })}
-            >
+            <Select value={values.method} onValueChange={(v) => patch({ method: v as HttpMethod })}>
               <SelectTrigger id="method">
                 <SelectValue />
               </SelectTrigger>
@@ -216,11 +213,7 @@ export function MonitorForm({
       <section className="panel space-y-4 p-4">
         <h2 className="text-sm font-semibold">Schedule &amp; expectations</h2>
         <div className="grid gap-4 md:grid-cols-3">
-          <Field
-            label="Interval (seconds)"
-            htmlFor="interval"
-            error={errors.intervalSeconds}
-          >
+          <Field label="Interval (seconds)" htmlFor="interval" error={errors.intervalSeconds}>
             <Input
               id="interval"
               type="number"

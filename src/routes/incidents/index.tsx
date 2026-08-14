@@ -4,7 +4,12 @@ import { useState } from "react";
 import { incidentsApi } from "@/lib/api";
 import { qk } from "@/lib/query/keys";
 import type { Incident } from "@/models";
-import { PageHeader, SampleDataNotice, DurationLabel, RelativeTime } from "@/components/common/misc";
+import {
+  PageHeader,
+  SampleDataNotice,
+  DurationLabel,
+  RelativeTime,
+} from "@/components/common/misc";
 import { SeverityTag, IncidentStateBadge } from "@/components/common/status";
 import { FilterBar } from "@/components/common/FilterBar";
 import { ResponsiveDataView } from "@/components/common/ResponsiveDataView";
@@ -24,7 +29,8 @@ export const Route = createFileRoute("/incidents/")({
       { title: "Incidents — SentinelOps" },
       {
         name: "description",
-        content: "Open, acknowledged and resolved incidents with severity, duration and affected regions.",
+        content:
+          "Open, acknowledged and resolved incidents with severity, duration and affected regions.",
       },
       { property: "og:title", content: "Incidents — SentinelOps" },
       {
@@ -53,10 +59,12 @@ function IncidentsPage() {
   const filtered = incidents.filter((i) => {
     const q = search.trim().toLowerCase();
     const matchesSearch =
-      !q || i.title.toLowerCase().includes(q) || i.monitorName.toLowerCase().includes(q) || i.id.toLowerCase().includes(q);
+      !q ||
+      i.title.toLowerCase().includes(q) ||
+      i.monitorName.toLowerCase().includes(q) ||
+      i.id.toLowerCase().includes(q);
     const matchesState =
-      state === "all" ||
-      (state === "active" ? i.state !== "resolved" : i.state === state);
+      state === "all" || (state === "active" ? i.state !== "resolved" : i.state === state);
     const matchesSeverity = severity === "all" || i.severity === severity;
     return matchesSearch && matchesState && matchesSeverity;
   });
@@ -77,7 +85,9 @@ function IncidentsPage() {
       cell: (i) => (
         <div className="min-w-0">
           <div className="truncate text-sm font-medium">{i.title}</div>
-          <div className="text-muted-foreground truncate font-mono text-[11px]">{i.monitorName}</div>
+          <div className="text-muted-foreground truncate font-mono text-[11px]">
+            {i.monitorName}
+          </div>
         </div>
       ),
     },
@@ -194,7 +204,9 @@ function IncidentsPage() {
             emptyState={
               <EmptyState
                 variant={incidents.length ? "all-clear" : "no-data"}
-                title={incidents.length ? "No incidents match these filters" : "No incidents recorded"}
+                title={
+                  incidents.length ? "No incidents match these filters" : "No incidents recorded"
+                }
               />
             }
             renderCompact={(i) => (

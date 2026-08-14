@@ -14,7 +14,8 @@ export const Route = createFileRoute("/status")({
       { title: "Status page preview — SentinelOps" },
       {
         name: "description",
-        content: "Public status page preview: overall health, per-service 90-day uptime and active incidents.",
+        content:
+          "Public status page preview: overall health, per-service 90-day uptime and active incidents.",
       },
       { property: "og:title", content: "Status page preview — SentinelOps" },
       {
@@ -94,7 +95,9 @@ function StatusPage() {
       </section>
 
       <section className="panel mt-4">
-        <h2 className="border-border border-b px-3 py-2 text-sm font-semibold">Recently resolved</h2>
+        <h2 className="border-border border-b px-3 py-2 text-sm font-semibold">
+          Recently resolved
+        </h2>
         {data.recentResolved.length === 0 ? (
           <EmptyState title="Nothing resolved recently" />
         ) : (

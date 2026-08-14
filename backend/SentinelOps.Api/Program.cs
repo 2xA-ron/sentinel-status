@@ -172,17 +172,27 @@ public class Program
 
         builder.Services.AddSignalR();
 
+        // Deployed frontend origin(s), e.g. https://sentinel-status.pages.dev or a custom
+        // domain fronted by Cloudflare. Comma-separated if there's more than one.
+        // Set via `gcloud run deploy --set-env-vars FRONTEND_ORIGINS=...` (see backend/DEPLOY.md).
+        var extraOrigins = (Environment.GetEnvironmentVariable("FRONTEND_ORIGINS") ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
         builder.Services.AddCors(options =>
         {
             options.AddPolicy("FrontendLocal", policy =>
                 policy
                     .WithOrigins(
-                        "http://localhost:5173",
-                        "http://127.0.0.1:5173",
-                        "http://localhost:3000",
-                        "http://127.0.0.1:3000")
+                        [
+                            "http://localhost:5173",
+                            "http://127.0.0.1:5173",
+                            "http://localhost:3000",
+                            "http://127.0.0.1:3000",
+                            .. extraOrigins,
+                        ])
                     .AllowAnyHeader()
-                    .AllowAnyMethod());
+                    .AllowAnyMethod()
+                    .AllowCredentials());
         });
 
         builder.Services.AddEndpointsApiExplorer();

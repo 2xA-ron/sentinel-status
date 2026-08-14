@@ -3,13 +3,22 @@ import type { IncidentEvent } from "@/models";
 import { cn } from "@/lib/utils";
 import { formatTimestamp, relativeTime } from "@/utils/format";
 
-const config: Record<
-  IncidentEvent["type"],
-  { Icon: typeof Flag; tone: string; label: string }
-> = {
-  detected: { Icon: AlertOctagon, tone: "text-status-down border-status-down/40", label: "Detected" },
-  confirmed: { Icon: Signal, tone: "text-status-degraded border-status-degraded/40", label: "Confirmed" },
-  acknowledged: { Icon: ShieldCheck, tone: "text-primary border-primary/40", label: "Acknowledged" },
+const config: Record<IncidentEvent["type"], { Icon: typeof Flag; tone: string; label: string }> = {
+  detected: {
+    Icon: AlertOctagon,
+    tone: "text-status-down border-status-down/40",
+    label: "Detected",
+  },
+  confirmed: {
+    Icon: Signal,
+    tone: "text-status-degraded border-status-degraded/40",
+    label: "Confirmed",
+  },
+  acknowledged: {
+    Icon: ShieldCheck,
+    tone: "text-primary border-primary/40",
+    label: "Acknowledged",
+  },
   note: { Icon: MessageSquare, tone: "text-muted-foreground border-border-strong", label: "Note" },
   recovered: { Icon: CheckCircle2, tone: "text-status-up border-status-up/40", label: "Recovered" },
   resolved: { Icon: CheckCircle2, tone: "text-status-up border-status-up/40", label: "Resolved" },

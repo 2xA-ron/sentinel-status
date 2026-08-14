@@ -35,8 +35,6 @@ public class SignalRHubTests
         public IClientProxy OthersInGroup(string groupName) => _proxy;
         public IClientProxy User(string userId) => _proxy;
         public IClientProxy Users(IReadOnlyList<string> userIds) => _proxy;
-
-        public string? LastPayload => _proxy.LastPayload;
     }
 
     private sealed class TestClientProxy : IClientProxy

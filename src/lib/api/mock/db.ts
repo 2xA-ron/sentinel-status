@@ -1,11 +1,4 @@
-import type {
-  AppSettings,
-  CheckResult,
-  Incident,
-  IncidentEvent,
-  Monitor,
-  Region,
-} from "@/models";
+import type { AppSettings, CheckResult, Incident, IncidentEvent, Monitor, Region } from "@/models";
 import {
   BASE_NOW,
   buildChecks,

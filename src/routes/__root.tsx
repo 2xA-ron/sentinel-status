@@ -22,9 +22,7 @@ function NotFoundComponent() {
       <div className="max-w-md text-center">
         <h1 className="text-primary font-mono text-6xl font-bold">404</h1>
         <h2 className="mt-4 text-lg font-semibold">Page not found</h2>
-        <p className="text-muted-foreground mt-2 text-sm">
-          That route isn't part of SentinelOps.
-        </p>
+        <p className="text-muted-foreground mt-2 text-sm">That route isn't part of SentinelOps.</p>
         <div className="mt-6">
           <Link
             to="/"

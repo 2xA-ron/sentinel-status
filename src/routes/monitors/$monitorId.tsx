@@ -30,7 +30,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { formatClock, formatInterval, formatMs, formatPercent, formatTimestamp } from "@/utils/format";
+import {
+  formatClock,
+  formatInterval,
+  formatMs,
+  formatPercent,
+  formatTimestamp,
+} from "@/utils/format";
 
 export const Route = createFileRoute("/monitors/$monitorId")({
   head: () => ({
@@ -230,7 +236,11 @@ function MonitorDetailPage() {
                     <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid stroke="var(--color-border)" strokeDasharray="2 4" vertical={false} />
+                <CartesianGrid
+                  stroke="var(--color-border)"
+                  strokeDasharray="2 4"
+                  vertical={false}
+                />
                 <XAxis
                   dataKey="time"
                   tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }}
@@ -307,7 +317,10 @@ function MonitorDetailPage() {
                     .slice(0, 200)
                     .map((c) => (
                       <tr key={c.id} className="border-border border-b last:border-b-0">
-                        <td className="px-3 py-1.5 whitespace-nowrap" title={formatTimestamp(c.timestamp)}>
+                        <td
+                          className="px-3 py-1.5 whitespace-nowrap"
+                          title={formatTimestamp(c.timestamp)}
+                        >
                           {formatClock(c.timestamp)}
                         </td>
                         <td className="px-3 py-1.5">{c.regionId}</td>

@@ -89,12 +89,7 @@ export interface Incident {
 }
 
 export type IncidentEventType =
-  | "detected"
-  | "confirmed"
-  | "acknowledged"
-  | "note"
-  | "recovered"
-  | "resolved";
+  "detected" | "confirmed" | "acknowledged" | "note" | "recovered" | "resolved";
 
 export interface IncidentEvent {
   id: string;

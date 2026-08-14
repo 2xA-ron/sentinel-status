@@ -15,7 +15,12 @@ export function RealtimeConnectionIndicator({
   const map = {
     connected: { label: "Live", tone: "text-status-up", Icon: Wifi, spin: false },
     connecting: { label: "Connecting", tone: "text-status-degraded", Icon: Loader2, spin: true },
-    reconnecting: { label: "Reconnecting", tone: "text-status-degraded", Icon: Loader2, spin: true },
+    reconnecting: {
+      label: "Reconnecting",
+      tone: "text-status-degraded",
+      Icon: Loader2,
+      spin: true,
+    },
     disconnected: { label: "Offline", tone: "text-status-down", Icon: WifiOff, spin: false },
   } as const;
 
