@@ -17,6 +17,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate deployment secrets
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          if [[ -z "$GCP_SA_KEY" ]]; then
+            echo "::error::GCP_SA_KEY is missing. Add the service-account JSON as a repository secret."
+            exit 1
+          fi
+          if [[ -z "$GCP_PROJECT_ID" ]]; then
+            echo "::error::GCP_PROJECT_ID is missing. Add the Google Cloud project ID as a repository secret."
+            exit 1
+          fi
+
       - id: auth
         uses: google-github-actions/auth@v2
         with:
