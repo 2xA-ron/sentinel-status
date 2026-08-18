@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { agentsApi } from "@/lib/api";
 import { qk } from "@/lib/query/keys";
-import { PageHeader, RelativeTime, SampleDataNotice, CodeInline } from "@/components/common/misc";
+import { PageHeader, RelativeTime, CodeInline } from "@/components/common/misc";
 import { EmptyState, ErrorState, LoadingSkeleton } from "@/components/common/states";
 import { StatusDot } from "@/components/common/status";
 
@@ -34,11 +34,7 @@ function AgentsPage() {
 
   return (
     <div className="mx-auto w-full max-w-300">
-      <PageHeader
-        title="Agents"
-        description="Read-only preview of the regional checking fleet."
-        meta={<SampleDataNotice />}
-      />
+      <PageHeader title="Agents" description="Read-only preview of the regional checking fleet." />
       {isLoading ? (
         <LoadingSkeleton rows={5} columns={4} />
       ) : isError ? (

@@ -151,7 +151,7 @@ function SettingsPage() {
       </section>
 
       <section className="panel mt-4 space-y-3 p-4">
-        <h2 className="text-sm font-semibold">Realtime simulation</h2>
+        <h2 className="text-sm font-semibold">Realtime connection</h2>
         <p className="text-muted-foreground text-xs">
           Stream state: <CodeInline>{connection}</CodeInline>
         </p>

@@ -1,0 +1,18 @@
+services:
+  sentinelops-demo-api:
+    build:
+      context: ./SentinelOps.Api
+    container_name: sentinelops-demo-api
+    restart: unless-stopped
+    ports:
+      - "5284:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: 8080
+      SENTINELOPS_DB_PATH: /data/sentinelops-demo.db
+      FRONTEND_ORIGINS: http://localhost:5173
+    volumes:
+      - sentinelops-demo-data:/data
+
+volumes:
+  sentinelops-demo-data:

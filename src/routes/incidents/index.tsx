@@ -4,12 +4,7 @@ import { useState } from "react";
 import { incidentsApi } from "@/lib/api";
 import { qk } from "@/lib/query/keys";
 import type { Incident } from "@/models";
-import {
-  PageHeader,
-  SampleDataNotice,
-  DurationLabel,
-  RelativeTime,
-} from "@/components/common/misc";
+import { PageHeader, DurationLabel, RelativeTime } from "@/components/common/misc";
 import { SeverityTag, IncidentStateBadge } from "@/components/common/status";
 import { FilterBar } from "@/components/common/FilterBar";
 import { ResponsiveDataView } from "@/components/common/ResponsiveDataView";
@@ -139,7 +134,6 @@ function IncidentsPage() {
       <PageHeader
         title="Incidents"
         description="Detection, acknowledgement and resolution across all monitors."
-        meta={<SampleDataNotice />}
       />
 
       <FilterBar

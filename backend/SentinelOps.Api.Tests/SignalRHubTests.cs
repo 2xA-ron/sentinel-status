@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
+using SentinelOps.Api.Hubs;
 
 namespace SentinelOps.Api.Tests;
 

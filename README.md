@@ -1,6 +1,173 @@
-# Sentinel Status
+# SentinelOps
 
-# SentinelOps — Frontend Plan (Phase 1, no backend)
+A full-stack uptime monitoring and incident response dashboard. The React/TanStack
+Start frontend talks to an ASP.NET Core 8 API backed by SQLite and receives live
+check and incident updates over SignalR.
+
+## Current implementation
+
+The application is wired for local, end-to-end use:
+
+* Create, edit, enable/disable, and delete HTTP monitors.
+* Run real outbound checks on each monitor's configured interval.
+* Persist check history, uptime statistics, and incidents in SQLite.
+* Open, acknowledge, resolve, and add notes to incidents.
+* Stream check and incident events to connected browsers with SignalR.
+* View dashboard, monitor, incident, status page, agents, and settings screens.
+
+The agent/region screen is currently a read-only preview. Checks are executed by
+the ASP.NET process and are not yet distributed across multiple machines.
+
+## Run locally
+
+Prerequisites: Node.js/npm and the .NET 8 SDK.
+
+Install the frontend dependencies once:
+
+```sh
+npm install
+```
+
+Start the API in terminal 1:
+
+```sh
+dotnet run --project backend/SentinelOps.Api/SentinelOps.Api.csproj --launch-profile http
+```
+
+The API listens on `http://localhost:5283` and exposes Swagger at
+`http://localhost:5283/swagger`.
+
+Start the frontend in terminal 2:
+
+```sh
+npm run dev
+```
+
+Open the local Vite URL shown in the terminal, normally
+`http://localhost:5173`. The default frontend API URL is already
+`http://localhost:5283`; use `.env` only when pointing at a deployed API:
+
+```sh
+cp .env.example .env
+# edit VITE_API_BASE_URL as needed
+```
+
+### First useful demo
+
+1. Open **Monitors** and create a monitor for a URL you control or a stable public endpoint such as `https://example.com`.
+2. Use a short interval while testing, such as 15 seconds, and leave the expected status at `200`.
+3. Return to the dashboard and watch the live connection indicator and event feed update after the check runs.
+4. Create a deliberately failing monitor, or temporarily use an invalid URL, to demonstrate degraded/down state and incident creation after three consecutive failures.
+5. Acknowledge and resolve the incident, then inspect its timeline and the monitor's check history.
+
+Runtime data is stored in `sentinelops.db` in the directory where the API process
+starts and is ignored by git. From the repository-root command above, delete
+`sentinelops.db` when you want a clean local demo database.
+
+## Always-on Raspberry Pi 5
+
+The Pi is a good home monitor host. Use a 64-bit Raspberry Pi OS install with
+Docker, copy this repository to the Pi, and run the API container from the
+repository root:
+
+```sh
+cd sentinel-status/backend
+docker compose -f docker-compose.pi.yml up -d --build
+```
+
+The API will be available on the Pi at `http://<pi-hostname-or-ip>:5283` and
+will restart after reboots or process failures. SQLite is stored in a Docker
+volume named `sentinelops-data`, so rebuilding the image does not erase monitor
+history. Check it with:
+
+```sh
+docker compose -f docker-compose.pi.yml ps
+docker compose -f docker-compose.pi.yml logs -f sentinelops-api
+```
+
+For personal LAN use, run the frontend on your computer with
+`VITE_API_BASE_URL=http://<pi-hostname-or-ip>:5283` in `.env`. For a public
+portfolio demo, do not port-forward the Pi directly to the internet. Deploy the
+frontend through Cloudflare and expose the API through a Cloudflare Tunnel or
+Tailscale Funnel, then set `FRONTEND_ORIGINS` to the exact public frontend URL.
+Keep the Pi's database and real monitor URLs out of the recording; use the
+development portfolio seed locally when you need a repeatable showcase.
+
+### Separate local portfolio environment
+
+You can run a portfolio copy beside the personal service without sharing its
+database. In terminal 1, start the demo API on port `5284`:
+
+```sh
+docker compose -f backend/docker-compose.demo.yml up -d --build
+```
+
+In terminal 2, point the frontend at that demo API:
+
+```sh
+cp .env.demo.example .env
+npm run dev
+```
+
+Then seed only the demo database:
+
+```sh
+curl -X POST http://localhost:5284/api/demo/seed
+```
+
+Your personal Pi service remains on port `5283` with its separate
+`sentinelops-data` volume. The demo service uses `sentinelops-demo-data`, so
+resetting or recording the portfolio environment cannot touch your real
+monitors. Remove the demo dataset with `curl -X DELETE http://localhost:5284/api/demo/seed`.
+
+### Portfolio demo mode
+
+For a repeatable screen recording, seed a clearly labeled demo dataset while the
+API is running in its Development profile:
+
+```sh
+curl -X POST http://localhost:5283/api/demo/seed
+```
+
+This creates two real monitors tagged `portfolio-demo`: one healthy endpoint and
+one predictable failing path. Wait about 45 seconds for three checks, then record
+the dashboard, monitor history, incident timeline, acknowledgement, and recovery
+workflow. The API continues checking them over SignalR, so the recording shows
+the actual live path rather than animated placeholder data.
+
+Remove only the portfolio monitors when finished:
+
+```sh
+curl -X DELETE http://localhost:5283/api/demo/seed
+```
+
+These endpoints exist only when `ASPNETCORE_ENVIRONMENT=Development`; they are
+not available in a deployed production build. For a polished portfolio demo,
+record at 1440px and 390px, show the browser Network tab briefly for REST and
+WebSocket traffic, and finish on the incident timeline. Keep personal monitors
+out of the recording by using the demo reset before capturing it.
+
+## Verification
+
+```sh
+npm run build
+npm run lint
+dotnet test backend/SentinelOps.sln
+```
+
+## Resume/project reference
+
+Use the deployed URL and repository link only after you have deployed it and
+verified the public demo. A concise resume entry could be:
+
+> **SentinelOps | Full-stack uptime monitoring dashboard** — Built a React/TanStack Start and ASP.NET Core 8 application that performs scheduled HTTP health checks, persists check history and incident state with EF Core/SQLite, and streams live status updates through SignalR. Added responsive operational views for monitor management, incident response, uptime analytics, and status reporting, with automated API and SignalR tests.
+
+Good portfolio evidence to capture:
+
+* A short screen recording showing a successful check, a failing monitor, the resulting incident, and recovery.
+* A screenshot of the dashboard with the realtime indicator and event feed visible.
+* Links to the README, API tests, `MonitorCheckService`, and the live demo in the project description.
+* A brief architecture diagram showing browser -> REST/SignalR -> ASP.NET Core -> SQLite.
 
 ## Cloudflare / Nitro deployment prep
 
@@ -43,33 +210,9 @@ Google Cloud Run, with Cloudflare (DNS/proxy) sitting in front of both it and
 the frontend. See [`backend/DEPLOY.md`](backend/DEPLOY.md) for the exact
 commands.
 
-A developer-focused uptime monitoring and incident management UI. This phase builds the complete frontend against a typed mock API layer designed to be swapped for the ASP.NET Core API + SignalR later.
-
-## Phase 1 guardrails
-
-This phase is frontend-only.
-
-Do **not** create or connect:
-
-* Supabase
-
-* Firebase
-
-* Authentication providers
-
-* Databases
-
-* Edge functions
-
-* Serverless functions
-
-* External backend services
-
-* Fake production APIs
-
-All data must come from the typed mock API layer.
-
-Components must never import fixture data directly. Every read and mutation must go through the mock API/service layer so the future ASP.NET Core client can replace it without requiring page-component rewrites.
+The sections below retain the original frontend design and responsive behavior
+specification. The typed service boundary described there remains useful, but
+the ASP.NET Core REST client and SignalR integration are now implemented.
 
 ## Visual direction
 
@@ -1176,8 +1319,8 @@ Continue developing this project in the [Lovable editor](https://lovable.dev/pro
 Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
+git clone https://github.com/2xA-ron/sentinel-status.git
+cd sentinel-status
 npm i
 npm run dev
 ```

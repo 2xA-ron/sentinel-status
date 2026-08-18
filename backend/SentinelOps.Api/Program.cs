@@ -1,5 +1,8 @@
-
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using SentinelOps.Api.Data;
+using SentinelOps.Api.Hubs;
+using SentinelOps.Api.Services;
 
 namespace SentinelOps.Api;
 
@@ -24,13 +27,6 @@ public record MonitorStatusInfo(
     DateTimeOffset? LastCheckAt,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
-
-public record MonitorAssertion(
-    string Id,
-    string Source,
-    string Comparison,
-    string? Target,
-    string Value);
 
 public record MonitorInput(
     string Name,
@@ -155,15 +151,6 @@ public record StatusHistoryEntry(
     double Availability,
     string Status);
 
-public class SentinelOpsHub : Hub
-{
-    public override async Task OnConnectedAsync()
-    {
-        await Clients.Caller.SendAsync("ReceiveHeartbeat", $"heartbeat:{DateTimeOffset.UtcNow:O}");
-        await base.OnConnectedAsync();
-    }
-}
-
 public class Program
 {
     public static void Main(string[] args)
@@ -171,6 +158,11 @@ public class Program
         var builder = WebApplication.CreateBuilder(args);
 
         builder.Services.AddSignalR();
+        builder.Services.AddHttpClient("monitor-check", client => client.Timeout = TimeSpan.FromSeconds(30));
+
+        var dbPath = Environment.GetEnvironmentVariable("SENTINELOPS_DB_PATH") ?? "sentinelops.db";
+        builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlite($"Data Source={dbPath}"));
+        builder.Services.AddHostedService<MonitorCheckService>();
 
         // Deployed frontend origin(s), e.g. https://sentinel-status.pages.dev or a custom
         // domain fronted by Cloudflare. Comma-separated if there's more than one.
@@ -200,6 +192,11 @@ public class Program
 
         var app = builder.Build();
 
+        using (var scope = app.Services.CreateScope())
+        {
+            scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreated();
+        }
+
         app.MapHub<SentinelOpsHub>("/realtime");
         app.UseCors("FrontendLocal");
 
@@ -209,6 +206,9 @@ public class Program
             app.UseSwaggerUI();
         }
 
+        // Read-only future-phase preview, explicitly not real per the project README —
+        // there's no fleet of distributed checking agents behind this, just the one
+        // process actually performing checks.
         var regions = new List<Region>
         {
             new("us-east", "us-east-1", "Ashburn, US", "0.4.2-preview", DateTimeOffset.UtcNow.AddMinutes(-12), 42, true),
@@ -217,97 +217,6 @@ public class Program
             new("eu-west", "eu-west-1", "Dublin, IE", "0.4.1-preview", DateTimeOffset.UtcNow.AddMinutes(-9), 0, false),
             new("ap-south", "ap-south-1", "Mumbai, IN", "0.4.2-preview", DateTimeOffset.UtcNow.AddMinutes(-47), 27, true),
             new("ap-northeast", "ap-northeast-1", "Tokyo, JP", "0.4.2-preview", DateTimeOffset.UtcNow.AddMinutes(-52), 24, true),
-        };
-
-        var monitors = new List<MonitorStatusInfo>
-        {
-            new(
-                "mon_api_gateway",
-                "API Gateway",
-                "https://api.sample-sentinelops.dev/health",
-                "GET",
-                new[] { 200 },
-                60,
-                5000,
-                new Dictionary<string, string> { ["user-agent"] = "SentinelOps-Agent/0.4 (sample)" },
-                null,
-                new[] { "us-east", "us-west", "eu-central" },
-                new[] { "core", "public" },
-                Array.Empty<MonitorAssertion>(),
-                new[] { "email", "slack" },
-                true,
-                "up",
-                99.8,
-                121,
-                DateTimeOffset.UtcNow.AddMinutes(-2),
-                DateTimeOffset.UtcNow.AddDays(-12),
-                DateTimeOffset.UtcNow.AddMinutes(-4)),
-            new(
-                "mon_auth_service",
-                "Auth Service",
-                "https://auth.sample-sentinelops.dev/healthz",
-                "GET",
-                new[] { 200 },
-                30,
-                5000,
-                new Dictionary<string, string> { ["user-agent"] = "SentinelOps-Agent/0.4 (sample)" },
-                null,
-                new[] { "us-east", "eu-central" },
-                new[] { "core", "security" },
-                Array.Empty<MonitorAssertion>(),
-                new[] { "pagerduty" },
-                true,
-                "up",
-                99.9,
-                84,
-                DateTimeOffset.UtcNow.AddMinutes(-1),
-                DateTimeOffset.UtcNow.AddDays(-8),
-                DateTimeOffset.UtcNow.AddMinutes(-3)),
-            new(
-                "mon_checkout",
-                "Checkout API",
-                "https://checkout.sample-sentinelops.dev/v2/status",
-                "POST",
-                new[] { 200 },
-                30,
-                5000,
-                new Dictionary<string, string> { ["content-type"] = "application/json", ["x-sample-client"] = "sentinelops-dev" },
-                "{\"hello\":\"world\"}",
-                new[] { "us-east", "us-west", "eu-west" },
-                new[] { "core", "revenue" },
-                Array.Empty<MonitorAssertion>(),
-                new[] { "slack", "webhook" },
-                true,
-                "down",
-                94.2,
-                310,
-                DateTimeOffset.UtcNow.AddMinutes(-6),
-                DateTimeOffset.UtcNow.AddDays(-5),
-                DateTimeOffset.UtcNow.AddMinutes(-10))
-        };
-
-        var incidents = new List<Incident>
-        {
-            new(
-                "inc_101",
-                "mon_checkout",
-                "Checkout API",
-                "critical",
-                "open",
-                "Checkout API failing in us-west",
-                DateTimeOffset.UtcNow.AddHours(-3),
-                null,
-                null,
-                null,
-                10800,
-                new[] { "us-west" },
-                17)
-        };
-
-        var incidentEvents = new List<IncidentEvent>
-        {
-            new("ev_1", "inc_101", "detected", DateTimeOffset.UtcNow.AddHours(-3), "system", "Detected failed checks for Checkout API"),
-            new("ev_2", "inc_101", "acknowledged", DateTimeOffset.UtcNow.AddHours(-2), "you@sentinelops", "Acknowledged from the SentinelOps console")
         };
 
         var settings = new AppSettings(
@@ -319,84 +228,120 @@ public class Program
             true,
             new[]
             {
-                new NotificationChannel("email_default", "email", "Primary Email", "ops@sample-sentinelops.dev", true),
+                new NotificationChannel("email_default", "email", "Primary Email", "ops@example.invalid", true),
                 new NotificationChannel("slack_default", "slack", "Ops Slack", "https://hooks.example.invalid/slack", true)
             });
 
-        static Dictionary<string, object> BuildRangeBucket(string monitorId, string range)
+        static MonitorStatusInfo ToMonitorDto(MonitorEntity m) => new(
+            m.Id, m.Name, m.Url, m.Method, m.ExpectedStatus, m.IntervalSeconds, m.TimeoutMs, m.Headers, m.Body,
+            m.Regions, m.Tags, m.Assertions, m.AlertChannels, m.Enabled, m.CurrentStatus, m.Uptime24h,
+            m.P95LatencyMs, m.LastCheckAt, m.CreatedAt, m.UpdatedAt);
+
+        static CheckResult ToCheckDto(CheckResultEntity c) => new(
+            c.Id, c.MonitorId, c.RegionId, c.Timestamp, c.StatusCode, c.LatencyMs, c.Success, c.ErrorType, c.ErrorMessage);
+
+        static Incident ToIncidentDto(IncidentEntity i) => new(
+            i.Id, i.MonitorId, i.MonitorName, i.Severity, i.State, i.Title, i.StartedAt, i.AcknowledgedAt,
+            i.AcknowledgedBy, i.ResolvedAt, i.DurationSeconds, i.AffectedRegions, i.FailedCheckCount);
+
+        static IncidentEvent ToIncidentEventDto(IncidentEventEntity e) => new(
+            e.Id, e.IncidentId, e.Type, e.Timestamp, e.Actor, e.Message);
+
+        static DateTimeOffset RangeStart(string range) => range switch
         {
-            var points = range switch
-            {
-                "1h" => 12,
-                "7d" => 14,
-                "30d" => 20,
-                _ => 16,
-            };
+            "1h" => DateTimeOffset.UtcNow.AddHours(-1),
+            "7d" => DateTimeOffset.UtcNow.AddDays(-7),
+            "30d" => DateTimeOffset.UtcNow.AddDays(-30),
+            _ => DateTimeOffset.UtcNow.AddHours(-24),
+        };
 
-            var buckets = new List<UptimeBucket>();
-            for (var i = 0; i < points; i++)
-            {
-                var ts = DateTimeOffset.UtcNow.AddMinutes(-((points - i) * 15));
-                var success = i % 4 != 0;
-                buckets.Add(new UptimeBucket(ts, success ? 100d : 88d, 120, 300, 420, 10, success ? 0 : 2));
-            }
-
-            return new Dictionary<string, object>
-            {
-                ["monitorId"] = monitorId,
-                ["range"] = range,
-                ["availability"] = buckets.Average(x => x.Availability),
-                ["p50"] = 120,
-                ["p95"] = 320,
-                ["p99"] = 470,
-                ["buckets"] = buckets,
-            };
+        static int Percentile(List<int> sorted, double p)
+        {
+            if (sorted.Count == 0) return 0;
+            var index = Math.Clamp((int)Math.Ceiling(p * sorted.Count) - 1, 0, sorted.Count - 1);
+            return sorted[index];
         }
 
         app.MapGet("/api/agents", () => Results.Ok(regions));
 
-        app.MapGet("/api/monitors", () => Results.Ok(monitors));
-        app.MapGet("/api/monitors/{id}", (string id) =>
+        if (app.Environment.IsDevelopment())
         {
-            var monitor = monitors.FirstOrDefault(x => x.Id == id);
-            return monitor is null ? Results.NotFound() : Results.Ok(monitor);
-        });
-
-        app.MapPost("/api/monitors", (MonitorInput input) =>
-        {
-            var monitor = new MonitorStatusInfo(
-                $"mon_{Guid.NewGuid():N}",
-                input.Name,
-                input.Url,
-                input.Method,
-                input.ExpectedStatus,
-                input.IntervalSeconds,
-                input.TimeoutMs,
-                input.Headers,
-                input.Body,
-                input.Regions,
-                input.Tags,
-                input.Assertions,
-                input.AlertChannels,
-                input.Enabled,
-                input.Enabled ? "unknown" : "paused",
-                100,
-                0,
-                null,
-                DateTimeOffset.UtcNow,
-                DateTimeOffset.UtcNow);
-
-            monitors.Add(monitor);
-            return Results.Created($"/api/monitors/{monitor.Id}", monitor);
-        });
-
-        app.MapPut("/api/monitors/{id}", (string id, MonitorInput input) =>
-        {
-            var existing = monitors.FirstOrDefault(x => x.Id == id);
-            if (existing is null) return Results.NotFound();
-
-            var updated = existing with
+            app.MapPost("/api/demo/seed", async (AppDbContext db) =>
             {
+                var now = DateTimeOffset.UtcNow;
+                var demoMonitors = new[]
+                {
+                    new MonitorEntity
+                    {
+                        Id = $"mon_{Guid.NewGuid():N}",
+                        Name = "Portfolio demo · healthy endpoint",
+                        Url = "https://example.com",
+                        Method = "GET",
+                        ExpectedStatus = [200],
+                        IntervalSeconds = 15,
+                        TimeoutMs = 5000,
+                        Regions = ["local"],
+                        Tags = ["portfolio-demo", "healthy"],
+                        Enabled = true,
+                        CurrentStatus = "unknown",
+                        Uptime24h = 100,
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                    },
+                    new MonitorEntity
+                    {
+                        Id = $"mon_{Guid.NewGuid():N}",
+                        Name = "Portfolio demo · incident flow",
+                        Url = "https://example.com/portfolio-demo-failure",
+                        Method = "GET",
+                        ExpectedStatus = [200],
+                        IntervalSeconds = 15,
+                        TimeoutMs = 5000,
+                        Regions = ["local"],
+                        Tags = ["portfolio-demo", "incident"] ,
+                        Enabled = true,
+                        CurrentStatus = "unknown",
+                        Uptime24h = 100,
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                    },
+                };
+
+                db.Monitors.AddRange(demoMonitors);
+                await db.SaveChangesAsync();
+                return Results.Created("/api/demo/seed", demoMonitors.Select(ToMonitorDto));
+            });
+
+            app.MapDelete("/api/demo/seed", async (AppDbContext db) =>
+            {
+                var demoMonitors = await db.Monitors
+                    .ToListAsync();
+                demoMonitors = demoMonitors
+                    .Where(m => m.Tags.Contains("portfolio-demo"))
+                    .ToList();
+                var ids = demoMonitors.Select(m => m.Id).ToArray();
+                db.CheckResults.RemoveRange(db.CheckResults.Where(c => ids.Contains(c.MonitorId)));
+                db.Monitors.RemoveRange(demoMonitors);
+                await db.SaveChangesAsync();
+                return Results.NoContent();
+            });
+        }
+
+        app.MapGet("/api/monitors", async (AppDbContext db) =>
+            Results.Ok((await db.Monitors.OrderBy(m => m.Name).ToListAsync()).Select(ToMonitorDto)));
+
+        app.MapGet("/api/monitors/{id}", async (string id, AppDbContext db) =>
+        {
+            var monitor = await db.Monitors.FindAsync(id);
+            return monitor is null ? Results.NotFound() : Results.Ok(ToMonitorDto(monitor));
+        });
+
+        app.MapPost("/api/monitors", async (MonitorInput input, AppDbContext db) =>
+        {
+            var now = DateTimeOffset.UtcNow;
+            var monitor = new MonitorEntity
+            {
+                Id = $"mon_{Guid.NewGuid():N}",
                 Name = input.Name,
                 Url = input.Url,
                 Method = input.Method,
@@ -410,234 +355,344 @@ public class Program
                 Assertions = input.Assertions,
                 AlertChannels = input.AlertChannels,
                 Enabled = input.Enabled,
-                UpdatedAt = DateTimeOffset.UtcNow,
-                CurrentStatus = input.Enabled ? (existing.CurrentStatus == "paused" ? "unknown" : existing.CurrentStatus) : "paused"
+                CurrentStatus = input.Enabled ? "unknown" : "paused",
+                Uptime24h = 100,
+                P95LatencyMs = 0,
+                LastCheckAt = null,
+                CreatedAt = now,
+                UpdatedAt = now,
             };
 
-            var index = monitors.FindIndex(x => x.Id == id);
-            monitors[index] = updated;
-            return Results.Ok(updated);
+            db.Monitors.Add(monitor);
+            await db.SaveChangesAsync();
+            return Results.Created($"/api/monitors/{monitor.Id}", ToMonitorDto(monitor));
         });
 
-        app.MapPatch("/api/monitors/{id}/enabled", (string id, Dictionary<string, bool> payload) =>
+        app.MapPut("/api/monitors/{id}", async (string id, MonitorInput input, AppDbContext db) =>
         {
-            var monitor = monitors.FirstOrDefault(x => x.Id == id);
+            var monitor = await db.Monitors.FindAsync(id);
+            if (monitor is null) return Results.NotFound();
+
+            monitor.Name = input.Name;
+            monitor.Url = input.Url;
+            monitor.Method = input.Method;
+            monitor.ExpectedStatus = input.ExpectedStatus;
+            monitor.IntervalSeconds = input.IntervalSeconds;
+            monitor.TimeoutMs = input.TimeoutMs;
+            monitor.Headers = input.Headers;
+            monitor.Body = input.Body;
+            monitor.Regions = input.Regions;
+            monitor.Tags = input.Tags;
+            monitor.Assertions = input.Assertions;
+            monitor.AlertChannels = input.AlertChannels;
+            monitor.Enabled = input.Enabled;
+            monitor.UpdatedAt = DateTimeOffset.UtcNow;
+            monitor.CurrentStatus = input.Enabled ? (monitor.CurrentStatus == "paused" ? "unknown" : monitor.CurrentStatus) : "paused";
+
+            await db.SaveChangesAsync();
+            return Results.Ok(ToMonitorDto(monitor));
+        });
+
+        app.MapPatch("/api/monitors/{id}/enabled", async (string id, Dictionary<string, bool> payload, AppDbContext db) =>
+        {
+            var monitor = await db.Monitors.FindAsync(id);
             if (monitor is null) return Results.NotFound();
 
             var enabled = payload.TryGetValue("enabled", out var value) && value;
-            monitor = monitor with
-            {
-                Enabled = enabled,
-                CurrentStatus = enabled ? "unknown" : "paused",
-                UpdatedAt = DateTimeOffset.UtcNow
-            };
+            monitor.Enabled = enabled;
+            monitor.CurrentStatus = enabled ? "unknown" : "paused";
+            monitor.UpdatedAt = DateTimeOffset.UtcNow;
 
-            var index = monitors.FindIndex(x => x.Id == id);
-            monitors[index] = monitor;
-            return Results.Ok(monitor);
+            await db.SaveChangesAsync();
+            return Results.Ok(ToMonitorDto(monitor));
         });
 
-        app.MapDelete("/api/monitors/{id}", (string id) =>
+        app.MapDelete("/api/monitors/{id}", async (string id, AppDbContext db) =>
         {
-            var idx = monitors.FindIndex(x => x.Id == id);
-            if (idx < 0) return Results.NotFound();
-            monitors.RemoveAt(idx);
+            var monitor = await db.Monitors.FindAsync(id);
+            if (monitor is null) return Results.NotFound();
+
+            var checks = db.CheckResults.Where(c => c.MonitorId == id);
+            db.CheckResults.RemoveRange(checks);
+            db.Monitors.Remove(monitor);
+            await db.SaveChangesAsync();
             return Results.NoContent();
         });
 
-        app.MapGet("/api/monitors/{id}/checks", (string id, string range = "24h") =>
+        app.MapGet("/api/monitors/{id}/checks", async (string id, AppDbContext db, string range = "24h") =>
         {
-            var monitor = monitors.FirstOrDefault(x => x.Id == id);
-            if (monitor is null) return Results.NotFound();
+            if (!await db.Monitors.AnyAsync(m => m.Id == id)) return Results.NotFound();
 
-            var list = new List<CheckResult>();
-            for (var i = 0; i < 18; i++)
+            var since = RangeStart(range);
+            var checks = await db.CheckResults
+                .Where(c => c.MonitorId == id && c.Timestamp >= since)
+                .OrderByDescending(c => c.Timestamp)
+                .Take(500)
+                .ToListAsync();
+
+            return Results.Ok(checks.Select(ToCheckDto).ToList());
+        });
+
+        app.MapGet("/api/monitors/{id}/uptime", async (string id, AppDbContext db, string range = "24h") =>
+        {
+            if (!await db.Monitors.AnyAsync(m => m.Id == id)) return Results.NotFound();
+
+            var since = RangeStart(range);
+            var checks = await db.CheckResults
+                .Where(c => c.MonitorId == id && c.Timestamp >= since)
+                .OrderBy(c => c.Timestamp)
+                .ToListAsync();
+
+            var bucketCount = range switch { "1h" => 12, "7d" => 7, "30d" => 30, _ => 24 };
+            var bucketSpan = (DateTimeOffset.UtcNow - since) / bucketCount;
+
+            var buckets = new List<UptimeBucket>();
+            for (var i = 0; i < bucketCount; i++)
             {
-                var ts = DateTimeOffset.UtcNow.AddMinutes(-(i * 15));
-                var success = i % 4 != 0;
-                list.Add(new CheckResult(
-                    $"check_{id}_{i}",
-                    id,
-                    "us-east",
-                    ts,
-                    success ? 200 : 503,
-                    success ? 132 : 540,
-                    success,
-                    success ? null : "timeout",
-                    success ? null : "Request timed out"));
+                var bucketStart = since + bucketSpan * i;
+                var bucketEnd = bucketStart + bucketSpan;
+                var inBucket = checks.Where(c => c.Timestamp >= bucketStart && c.Timestamp < bucketEnd).ToList();
+                var latencies = inBucket.Select(c => c.LatencyMs).OrderBy(x => x).ToList();
+
+                buckets.Add(new UptimeBucket(
+                    bucketEnd,
+                    inBucket.Count == 0 ? 100 : Math.Round(100.0 * inBucket.Count(c => c.Success) / inBucket.Count, 2),
+                    Percentile(latencies, 0.50),
+                    Percentile(latencies, 0.95),
+                    Percentile(latencies, 0.99),
+                    inBucket.Count,
+                    inBucket.Count(c => !c.Success)));
             }
 
-            return Results.Ok(list.OrderByDescending(x => x.Timestamp).ToList());
+            var allLatencies = checks.Select(c => c.LatencyMs).OrderBy(x => x).ToList();
+            var window = new UptimeWindow(
+                id,
+                range,
+                checks.Count == 0 ? 100 : Math.Round(100.0 * checks.Count(c => c.Success) / checks.Count, 3),
+                Percentile(allLatencies, 0.50),
+                Percentile(allLatencies, 0.95),
+                Percentile(allLatencies, 0.99),
+                buckets);
+
+            return Results.Ok(window);
         });
 
-        app.MapGet("/api/monitors/{id}/uptime", (string id, string range = "24h") =>
+        app.MapGet("/api/monitors/{id}/incidents", async (string id, AppDbContext db) =>
+            Results.Ok((await db.Incidents.Where(i => i.MonitorId == id).OrderByDescending(i => i.StartedAt).ToListAsync()).Select(ToIncidentDto)));
+
+        app.MapGet("/api/monitors/{id}/recent-buckets", async (string id, AppDbContext db, int count = 20) =>
         {
-            var monitor = monitors.FirstOrDefault(x => x.Id == id);
-            if (monitor is null) return Results.NotFound();
-            return Results.Ok(BuildRangeBucket(id, range));
+            if (!await db.Monitors.AnyAsync(m => m.Id == id)) return Results.NotFound();
+
+            var take = count > 0 ? count : 20;
+            var checks = await db.CheckResults
+                .Where(c => c.MonitorId == id)
+                .OrderByDescending(c => c.Timestamp)
+                .Take(take)
+                .ToListAsync();
+            checks.Reverse();
+
+            return Results.Ok(checks.Select(c => new { status = c.Success ? "up" : "down", timestamp = c.Timestamp }));
         });
 
-        app.MapGet("/api/monitors/{id}/incidents", (string id) =>
+        app.MapGet("/api/incidents", async (AppDbContext db) =>
+            Results.Ok((await db.Incidents.OrderByDescending(i => i.StartedAt).ToListAsync()).Select(ToIncidentDto)));
+
+        app.MapGet("/api/incidents/{id}", async (string id, AppDbContext db) =>
         {
-            var items = incidents.Where(x => x.MonitorId == id).ToList();
-            return Results.Ok(items);
+            var incident = await db.Incidents.FindAsync(id);
+            return incident is null ? Results.NotFound() : Results.Ok(ToIncidentDto(incident));
         });
 
-        app.MapGet("/api/monitors/{id}/recent-buckets", (string id, int count = 20) =>
+        app.MapGet("/api/incidents/{id}/events", async (string id, AppDbContext db) =>
         {
-            var monitor = monitors.FirstOrDefault(x => x.Id == id);
-            if (monitor is null) return Results.NotFound();
-
-            var list = new List<object>();
-            for (var i = 0; i < count; i++)
-            {
-                var ts = DateTimeOffset.UtcNow.AddMinutes(-(i * 5));
-                list.Add(new { status = i % 3 == 0 ? "down" : "up", timestamp = ts });
-            }
-
-            return Results.Ok(list);
+            if (!await db.Incidents.AnyAsync(i => i.Id == id)) return Results.NotFound();
+            var events = await db.IncidentEvents.Where(e => e.IncidentId == id).OrderBy(e => e.Timestamp).ToListAsync();
+            return Results.Ok(events.Select(ToIncidentEventDto));
         });
 
-        app.MapGet("/api/incidents", () => Results.Ok(incidents));
-        app.MapGet("/api/incidents/{id}", (string id) =>
+        app.MapPost("/api/incidents/{id}/acknowledge", async (string id, Dictionary<string, string> payload, AppDbContext db) =>
         {
-            var incident = incidents.FirstOrDefault(x => x.Id == id);
-            return incident is null ? Results.NotFound() : Results.Ok(incident);
-        });
-
-        app.MapGet("/api/incidents/{id}/events", (string id) =>
-        {
-            var incident = incidents.FirstOrDefault(x => x.Id == id);
-            if (incident is null) return Results.NotFound();
-            return Results.Ok(incidentEvents.Where(x => x.IncidentId == id).OrderBy(x => x.Timestamp).ToList());
-        });
-
-        app.MapPost("/api/incidents/{id}/acknowledge", (string id, Dictionary<string, string> payload) =>
-        {
-            var incident = incidents.FirstOrDefault(x => x.Id == id);
-            if (incident is null) return Results.NotFound();
-
-            var actor = payload.GetValueOrDefault("actor", "automation");
-            incident = incident with
-            {
-                State = "acknowledged",
-                AcknowledgedAt = DateTimeOffset.UtcNow,
-                AcknowledgedBy = actor
-            };
-
-            var idx = incidents.FindIndex(x => x.Id == id);
-            incidents[idx] = incident;
-            incidentEvents.Add(new IncidentEvent($"ev_{Guid.NewGuid():N}", id, "acknowledged", DateTimeOffset.UtcNow, actor, "Acknowledged from the SentinelOps console"));
-            return Results.Ok(incident);
-        });
-
-        app.MapPost("/api/incidents/{id}/resolve", (string id, Dictionary<string, string> payload) =>
-        {
-            var incident = incidents.FirstOrDefault(x => x.Id == id);
+            var incident = await db.Incidents.FindAsync(id);
             if (incident is null) return Results.NotFound();
 
-            var actor = payload.GetValueOrDefault("actor", "automation");
-            var resolvedAt = DateTimeOffset.UtcNow;
-            incident = incident with
-            {
-                State = "resolved",
-                ResolvedAt = resolvedAt,
-                DurationSeconds = (int)(resolvedAt - incident.StartedAt).TotalSeconds,
-                AcknowledgedAt = incident.AcknowledgedAt ?? DateTimeOffset.UtcNow,
-                AcknowledgedBy = incident.AcknowledgedBy ?? actor
-            };
-
-            var idx = incidents.FindIndex(x => x.Id == id);
-            incidents[idx] = incident;
-            incidentEvents.Add(new IncidentEvent($"ev_{Guid.NewGuid():N}", id, "resolved", resolvedAt, actor, "Marked resolved from the SentinelOps console"));
-            return Results.Ok(incident);
-        });
-
-        app.MapPatch("/api/incidents/{id}/state", (string id, Dictionary<string, object> payload) =>
-        {
-            var incident = incidents.FirstOrDefault(x => x.Id == id);
-            if (incident is null) return Results.NotFound();
-            var state = payload.GetValueOrDefault("state", "open")?.ToString() ?? "open";
-            incident = incident with { State = state };
-            var idx = incidents.FindIndex(x => x.Id == id);
-            incidents[idx] = incident;
-            return Results.Ok(incident);
-        });
-
-        app.MapPost("/api/incidents/{id}/notes", (string id, Dictionary<string, string> payload) =>
-        {
-            var incident = incidents.FirstOrDefault(x => x.Id == id);
-            if (incident is null) return Results.NotFound();
-
-            var message = payload.GetValueOrDefault("message", "Added note");
             var actor = payload.GetValueOrDefault("actor", "you@sentinelops");
-            var eventItem = new IncidentEvent($"ev_{Guid.NewGuid():N}", id, "note", DateTimeOffset.UtcNow, actor, message);
-            incidentEvents.Add(eventItem);
-            return Results.Ok(eventItem);
+            incident.State = "acknowledged";
+            incident.AcknowledgedAt = DateTimeOffset.UtcNow;
+            incident.AcknowledgedBy = actor;
+
+            db.IncidentEvents.Add(new IncidentEventEntity
+            {
+                Id = $"ev_{Guid.NewGuid():N}",
+                IncidentId = id,
+                Type = "acknowledged",
+                Timestamp = DateTimeOffset.UtcNow,
+                Actor = actor,
+                Message = "Acknowledged from the SentinelOps console",
+            });
+
+            await db.SaveChangesAsync();
+            return Results.Ok(ToIncidentDto(incident));
         });
 
-        app.MapGet("/api/dashboard/summary", () => Results.Ok(new DashboardSummary(
-            DateTimeOffset.UtcNow,
-            monitors.Count(x => x.CurrentStatus == "up"),
-            monitors.Count(x => x.CurrentStatus == "degraded"),
-            monitors.Count(x => x.CurrentStatus == "down"),
-            monitors.Count(x => x.CurrentStatus == "paused"),
-            incidents.Count,
-            monitors.Average(x => x.Uptime24h),
-            monitors.Max(x => x.P95LatencyMs))));
-
-        app.MapGet("/api/dashboard/events", (int limit = 20) =>
+        app.MapPost("/api/incidents/{id}/resolve", async (string id, Dictionary<string, string> payload, AppDbContext db) =>
         {
+            var incident = await db.Incidents.FindAsync(id);
+            if (incident is null) return Results.NotFound();
+
+            var actor = payload.GetValueOrDefault("actor", "you@sentinelops");
+            var resolvedAt = DateTimeOffset.UtcNow;
+            incident.State = "resolved";
+            incident.ResolvedAt = resolvedAt;
+            incident.DurationSeconds = (int)(resolvedAt - incident.StartedAt).TotalSeconds;
+            incident.AcknowledgedAt ??= resolvedAt;
+            incident.AcknowledgedBy ??= actor;
+
+            db.IncidentEvents.Add(new IncidentEventEntity
+            {
+                Id = $"ev_{Guid.NewGuid():N}",
+                IncidentId = id,
+                Type = "resolved",
+                Timestamp = resolvedAt,
+                Actor = actor,
+                Message = "Marked resolved from the SentinelOps console",
+            });
+
+            // Let the next failure streak open a fresh incident instead of reusing this one.
+            var monitor = await db.Monitors.FindAsync(incident.MonitorId);
+            if (monitor is not null && monitor.OpenIncidentId == id)
+            {
+                monitor.OpenIncidentId = null;
+            }
+
+            await db.SaveChangesAsync();
+            return Results.Ok(ToIncidentDto(incident));
+        });
+
+        app.MapPatch("/api/incidents/{id}/state", async (string id, Dictionary<string, object> payload, AppDbContext db) =>
+        {
+            var incident = await db.Incidents.FindAsync(id);
+            if (incident is null) return Results.NotFound();
+            incident.State = payload.GetValueOrDefault("state", "open")?.ToString() ?? "open";
+            await db.SaveChangesAsync();
+            return Results.Ok(ToIncidentDto(incident));
+        });
+
+        app.MapPost("/api/incidents/{id}/notes", async (string id, Dictionary<string, string> payload, AppDbContext db) =>
+        {
+            if (!await db.Incidents.AnyAsync(i => i.Id == id)) return Results.NotFound();
+
+            var eventItem = new IncidentEventEntity
+            {
+                Id = $"ev_{Guid.NewGuid():N}",
+                IncidentId = id,
+                Type = "note",
+                Timestamp = DateTimeOffset.UtcNow,
+                Actor = payload.GetValueOrDefault("actor", "you@sentinelops"),
+                Message = payload.GetValueOrDefault("message", "Added note"),
+            };
+            db.IncidentEvents.Add(eventItem);
+            await db.SaveChangesAsync();
+            return Results.Ok(ToIncidentEventDto(eventItem));
+        });
+
+        app.MapGet("/api/dashboard/summary", async (AppDbContext db) =>
+        {
+            var monitors = await db.Monitors.ToListAsync();
+            var activeIncidents = await db.Incidents.CountAsync(i => i.State != "resolved");
+
+            return Results.Ok(new DashboardSummary(
+                DateTimeOffset.UtcNow,
+                monitors.Count(m => m.CurrentStatus == "up"),
+                monitors.Count(m => m.CurrentStatus == "degraded"),
+                monitors.Count(m => m.CurrentStatus == "down"),
+                monitors.Count(m => m.CurrentStatus == "paused"),
+                activeIncidents,
+                monitors.Count == 0 ? 100 : Math.Round(monitors.Average(m => m.Uptime24h), 3),
+                monitors.Count == 0 ? 0 : monitors.Max(m => m.P95LatencyMs)));
+        });
+
+        app.MapGet("/api/dashboard/events", async (AppDbContext db, int limit = 20) =>
+        {
+            var take = limit > 0 ? limit : 20;
             var items = new List<EventFeedItem>();
+
+            var incidentEvents = await db.IncidentEvents.OrderByDescending(e => e.Timestamp).Take(take).ToListAsync();
+            var incidentIds = incidentEvents.Select(e => e.IncidentId).Distinct().ToList();
+            var incidentsById = await db.Incidents.Where(i => incidentIds.Contains(i.Id)).ToDictionaryAsync(i => i.Id);
+
             foreach (var evt in incidentEvents)
             {
-                var incident = incidents.FirstOrDefault(x => x.Id == evt.IncidentId);
-                if (incident is null) continue;
+                if (!incidentsById.TryGetValue(evt.IncidentId, out var incident)) continue;
                 items.Add(new EventFeedItem(
-                    evt.Id,
-                    "incident",
-                    evt.Type == "resolved" ? "success" : evt.Type == "detected" ? "error" : "info",
-                    incident.MonitorId,
-                    incident.MonitorName,
-                    $"{incident.MonitorName}: {evt.Message}",
-                    evt.Timestamp));
+                    evt.Id, "incident",
+                    evt.Type == "resolved" || evt.Type == "recovered" ? "success" : evt.Type == "detected" ? "error" : "info",
+                    incident.MonitorId, incident.MonitorName, $"{incident.MonitorName}: {evt.Message}", evt.Timestamp));
             }
 
-            foreach (var monitor in monitors)
+            var failedChecks = await db.CheckResults
+                .Where(c => !c.Success)
+                .OrderByDescending(c => c.Timestamp)
+                .Take(take)
+                .ToListAsync();
+            var monitorIds = failedChecks.Select(c => c.MonitorId).Distinct().ToList();
+            var monitorNames = await db.Monitors.Where(m => monitorIds.Contains(m.Id)).ToDictionaryAsync(m => m.Id, m => m.Name);
+
+            foreach (var check in failedChecks)
             {
+                var name = monitorNames.GetValueOrDefault(check.MonitorId, check.MonitorId);
                 items.Add(new EventFeedItem(
-                    $"feed_{monitor.Id}",
-                    "check",
-                    "warn",
-                    monitor.Id,
-                    monitor.Name,
-                    $"Failed check from us-east — timeout",
-                    DateTimeOffset.UtcNow.AddMinutes(-10)));
+                    $"feed_{check.Id}", "check", "warn", check.MonitorId, name,
+                    $"Failed check from {check.RegionId} — {check.ErrorMessage ?? check.ErrorType ?? "unknown error"}",
+                    check.Timestamp));
             }
 
-            return Results.Ok(items.OrderByDescending(x => x.Timestamp).Take(limit).ToList());
+            return Results.Ok(items.OrderByDescending(x => x.Timestamp).Take(take).ToList());
         });
 
-        app.MapGet("/api/status", () => Results.Ok(new
+        app.MapGet("/api/status", async (AppDbContext db) =>
         {
-            overall = "degraded",
-            updatedAt = DateTimeOffset.UtcNow,
-            services = new[]
+            var monitors = await db.Monitors.OrderBy(m => m.Name).ToListAsync();
+            var since90d = DateTimeOffset.UtcNow.AddDays(-90);
+
+            var services = new List<StatusPageService>();
+            foreach (var monitor in monitors)
             {
-                new StatusPageService("mon_api_gateway", "API Gateway", "up", 99.9, new List<StatusHistoryEntry>
-                {
-                    new(DateTimeOffset.UtcNow.AddDays(-89), 99.8, "up"),
-                    new(DateTimeOffset.UtcNow.AddDays(-1), 99.9, "up")
-                }),
-                new StatusPageService("mon_checkout", "Checkout API", "down", 94.2, new List<StatusHistoryEntry>
-                {
-                    new(DateTimeOffset.UtcNow.AddDays(-89), 97.3, "up"),
-                    new(DateTimeOffset.UtcNow.AddDays(-1), 94.2, "down")
-                })
-            },
-            activeIncidents = incidents,
-            recentResolved = Array.Empty<Incident>()
-        }));
+                var checks = await db.CheckResults
+                    .Where(c => c.MonitorId == monitor.Id && c.Timestamp >= since90d)
+                    .ToListAsync();
+
+                var availability90d = checks.Count == 0 ? 100 : Math.Round(100.0 * checks.Count(c => c.Success) / checks.Count, 2);
+                var history = checks
+                    .GroupBy(c => c.Timestamp.Date)
+                    .OrderBy(g => g.Key)
+                    .Select(g => new StatusHistoryEntry(
+                        g.Key,
+                        Math.Round(100.0 * g.Count(c => c.Success) / g.Count(), 2),
+                        g.All(c => c.Success) ? "up" : g.Any(c => c.Success) ? "degraded" : "down"))
+                    .ToList();
+
+                services.Add(new StatusPageService(monitor.Id, monitor.Name, monitor.CurrentStatus, availability90d, history));
+            }
+
+            var overall = monitors.Any(m => m.CurrentStatus == "down") ? "down"
+                : monitors.Any(m => m.CurrentStatus == "degraded") ? "degraded"
+                : "up";
+
+            var activeIncidents = (await db.Incidents.Where(i => i.State != "resolved").OrderByDescending(i => i.StartedAt).ToListAsync())
+                .Select(ToIncidentDto).ToList();
+            var recentResolved = (await db.Incidents.Where(i => i.State == "resolved").OrderByDescending(i => i.ResolvedAt).Take(10).ToListAsync())
+                .Select(ToIncidentDto).ToList();
+
+            return Results.Ok(new
+            {
+                overall,
+                updatedAt = DateTimeOffset.UtcNow,
+                services,
+                activeIncidents,
+                recentResolved,
+            });
+        });
 
         app.MapGet("/api/settings", () => Results.Ok(settings));
         app.MapPatch("/api/settings", (AppSettings patch) =>

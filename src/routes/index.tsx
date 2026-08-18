@@ -5,12 +5,7 @@ import { Activity, AlertTriangle, ArrowRight, Gauge, Timer, TrendingDown } from 
 import { Suspense } from "react";
 import { dashboardApi, monitorsApi, incidentsApi } from "@/lib/api";
 import { qk } from "@/lib/query/keys";
-import {
-  PageHeader,
-  RelativeTime,
-  SampleDataNotice,
-  DurationLabel,
-} from "@/components/common/misc";
+import { PageHeader, RelativeTime, DurationLabel } from "@/components/common/misc";
 import { MetricTile } from "@/components/common/MetricTile";
 import {
   StatusDot,
@@ -63,7 +58,6 @@ function DashboardPage() {
       <PageHeader
         title="Dashboard"
         description="Global health across every monitored endpoint."
-        meta={<SampleDataNotice />}
         actions={
           <>
             <RealtimeConnectionIndicator className="sm:hidden" />
