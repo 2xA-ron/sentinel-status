@@ -23,6 +23,25 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Validate deployment secrets
+        env:
+          VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [[ -z "$VITE_API_BASE_URL" ]]; then
+            echo "::error::VITE_API_BASE_URL is missing. Add the deployed API URL as a repository secret."
+            exit 1
+          fi
+          if [[ -z "$CLOUDFLARE_API_TOKEN" ]]; then
+            echo "::error::CLOUDFLARE_API_TOKEN is missing. Add a scoped Cloudflare API token as a repository secret."
+            exit 1
+          fi
+          if [[ -z "$CLOUDFLARE_ACCOUNT_ID" ]]; then
+            echo "::error::CLOUDFLARE_ACCOUNT_ID is missing. Add the Cloudflare account ID as a repository secret."
+            exit 1
+          fi
+
       - uses: actions/setup-node@v5
         with:
           # wrangler (^4.27.0, currently resolving to 4.123.x) requires Node >=22 —
