@@ -31,10 +31,9 @@ interface RealtimeContextValue {
 
 const RealtimeContext = createContext<RealtimeContextValue | null>(null);
 
-const API_BASE = (import.meta.env["VITE_API_BASE_URL"] ?? "http://localhost:5283").replace(
-  /\/+$/,
-  "",
-);
+const configuredApiBase = import.meta.env["VITE_API_BASE_URL"] ?? "http://localhost:5283";
+let API_BASE = configuredApiBase;
+while (API_BASE.endsWith("/")) API_BASE = API_BASE.slice(0, -1);
 
 /** Payload shape broadcast by MonitorCheckService after each real HTTP check. */
 interface CheckEventPayload {
@@ -55,7 +54,7 @@ interface IncidentEventPayload {
   message: string;
 }
 
-export function RealtimeProvider({ children }: { children: ReactNode }) {
+export function RealtimeProvider({ children }: Readonly<{ children: ReactNode }>) {
   const queryClient = useQueryClient();
   const [connection, setConnection] = useState<ConnectionState>("connecting");
   const [events, setEvents] = useState<RealtimeEvent[]>([]);
@@ -165,8 +164,10 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       setPaused,
       simulateDisconnect: () => {
         setConnection("disconnected");
-        timers.current.push(setTimeout(() => setConnection("reconnecting"), 1200));
-        timers.current.push(setTimeout(() => setConnection("connected"), 4200));
+        timers.current = timers.current.concat([
+          setTimeout(() => setConnection("reconnecting"), 1200),
+          setTimeout(() => setConnection("connected"), 4200),
+        ]);
       },
     }),
     [connection, lastEventAt, events, paused],

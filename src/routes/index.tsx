@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery, useQuery } from "@tanstack/react-query";
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Activity, AlertTriangle, ArrowRight, Gauge, Timer, TrendingDown } from "lucide-react";
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import { dashboardApi, monitorsApi, incidentsApi } from "@/lib/api";
 import { qk } from "@/lib/query/keys";
 import { PageHeader, RelativeTime, DurationLabel } from "@/components/common/misc";
@@ -13,7 +12,6 @@ import {
   SeverityTag,
   IncidentStateBadge,
 } from "@/components/common/status";
-import { UptimeBar } from "@/components/common/UptimeBar";
 import { EmptyState, ErrorState, SkeletonTiles, LoadingSkeleton } from "@/components/common/states";
 import { RealtimeConnectionIndicator } from "@/components/common/RealtimeConnectionIndicator";
 import { formatMs, formatPercent } from "@/utils/format";
@@ -136,42 +134,51 @@ function ActiveIncidentsPanel() {
     queryFn: () => incidentsApi.list(),
   });
   const active = (data ?? []).filter((i) => i.state !== "resolved");
+  let content: ReactNode;
+
+  if (isLoading) {
+    content = <LoadingSkeleton rows={3} columns={4} />;
+  } else if (isError) {
+    content = (
+      <ErrorState
+        description={(error as Error).message}
+        onRetry={() => void refetch()}
+        className="m-3"
+      />
+    );
+  } else if (active.length === 0) {
+    content = (
+      <EmptyState
+        variant="all-clear"
+        title="No active incidents"
+        description="Every monitor is reporting healthy checks."
+      />
+    );
+  } else {
+    content = (
+      <ul className="divide-border divide-y">
+        {active.map((incident) => (
+          <li key={incident.id}>
+            <Link
+              to="/incidents/$incidentId"
+              params={{ incidentId: incident.id }}
+              className="hover:bg-accent/40 flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 transition-colors"
+            >
+              <SeverityTag severity={incident.severity} />
+              <span className="min-w-0 flex-1 truncate text-sm">{incident.title}</span>
+              <IncidentStateBadge state={incident.state} />
+              <DurationLabel since={incident.startedAt} className="text-muted-foreground" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    );
+  }
 
   return (
     <section className="panel">
       <PanelHeader title="Active incidents" to="/incidents" linkLabel="All incidents" />
-      {isLoading ? (
-        <LoadingSkeleton rows={3} columns={4} />
-      ) : isError ? (
-        <ErrorState
-          description={(error as Error).message}
-          onRetry={() => void refetch()}
-          className="m-3"
-        />
-      ) : active.length === 0 ? (
-        <EmptyState
-          variant="all-clear"
-          title="No active incidents"
-          description="Every monitor is reporting healthy checks."
-        />
-      ) : (
-        <ul className="divide-border divide-y">
-          {active.map((incident) => (
-            <li key={incident.id}>
-              <Link
-                to="/incidents/$incidentId"
-                params={{ incidentId: incident.id }}
-                className="hover:bg-accent/40 flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 transition-colors"
-              >
-                <SeverityTag severity={incident.severity} />
-                <span className="min-w-0 flex-1 truncate text-sm">{incident.title}</span>
-                <IncidentStateBadge state={incident.state} />
-                <DurationLabel since={incident.startedAt} className="text-muted-foreground" />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      {content}
     </section>
   );
 }
@@ -189,50 +196,59 @@ function AttentionPanel() {
         (rank[a.currentStatus] ?? 9) - (rank[b.currentStatus] ?? 9) || a.uptime24h - b.uptime24h,
     )
     .slice(0, 6);
+  let content: ReactNode;
+
+  if (isLoading) {
+    content = <LoadingSkeleton rows={4} columns={4} />;
+  } else if (isError) {
+    content = (
+      <ErrorState
+        description={(error as Error).message}
+        onRetry={() => void refetch()}
+        className="m-3"
+      />
+    );
+  } else if (monitors.length === 0) {
+    content = (
+      <EmptyState
+        title="No monitors yet"
+        description="Create your first monitor to start collecting checks."
+        action={
+          <Button asChild size="sm">
+            <Link to="/monitors/new">New monitor</Link>
+          </Button>
+        }
+      />
+    );
+  } else {
+    content = (
+      <ul className="divide-border divide-y">
+        {monitors.map((m) => (
+          <li key={m.id}>
+            <Link
+              to="/monitors/$monitorId"
+              params={{ monitorId: m.id }}
+              className="hover:bg-accent/40 flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 transition-colors"
+            >
+              <StatusBadge status={m.currentStatus} />
+              <span className="min-w-0 flex-1 truncate text-sm">{m.name}</span>
+              <span className="tnum text-muted-foreground font-mono text-xs">
+                {formatPercent(m.uptime24h, 2)}
+              </span>
+              <span className="tnum text-muted-foreground hidden font-mono text-xs sm:inline">
+                {formatMs(m.p95LatencyMs)}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    );
+  }
 
   return (
     <section className="panel">
       <PanelHeader title="Needs attention" to="/monitors" linkLabel="All monitors" />
-      {isLoading ? (
-        <LoadingSkeleton rows={4} columns={4} />
-      ) : isError ? (
-        <ErrorState
-          description={(error as Error).message}
-          onRetry={() => void refetch()}
-          className="m-3"
-        />
-      ) : monitors.length === 0 ? (
-        <EmptyState
-          title="No monitors yet"
-          description="Create your first monitor to start collecting checks."
-          action={
-            <Button asChild size="sm">
-              <Link to="/monitors/new">New monitor</Link>
-            </Button>
-          }
-        />
-      ) : (
-        <ul className="divide-border divide-y">
-          {monitors.map((m) => (
-            <li key={m.id}>
-              <Link
-                to="/monitors/$monitorId"
-                params={{ monitorId: m.id }}
-                className="hover:bg-accent/40 flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 transition-colors"
-              >
-                <StatusBadge status={m.currentStatus} />
-                <span className="min-w-0 flex-1 truncate text-sm">{m.name}</span>
-                <span className="tnum text-muted-foreground font-mono text-xs">
-                  {formatPercent(m.uptime24h, 2)}
-                </span>
-                <span className="tnum text-muted-foreground hidden font-mono text-xs sm:inline">
-                  {formatMs(m.p95LatencyMs)}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      {content}
     </section>
   );
 }
@@ -249,6 +265,39 @@ function EventFeedPanel() {
     success: "text-status-up",
     info: "text-muted-foreground",
   };
+  let content: ReactNode;
+
+  if (isLoading) {
+    content = <LoadingSkeleton rows={8} columns={2} />;
+  } else if (isError) {
+    content = (
+      <ErrorState
+        description={(error as Error).message}
+        onRetry={() => void refetch()}
+        className="m-3"
+      />
+    );
+  } else if ((data ?? []).length === 0) {
+    content = <EmptyState title="No recent activity" />;
+  } else {
+    content = (
+      <ul className="divide-border divide-y font-mono text-xs">
+        {(data ?? []).map((e) => (
+          <li key={e.id} className="flex items-start gap-2 px-3 py-2">
+            <span className={tone[e.severity] ?? ""} aria-hidden>
+              {e.severity === "error" ? (
+                <TrendingDown className="size-3.5" />
+              ) : (
+                <Activity className="size-3.5" />
+              )}
+            </span>
+            <span className="min-w-0 flex-1 wrap-break-word">{e.message}</span>
+            <RelativeTime value={e.timestamp} className="shrink-0 text-[11px]" />
+          </li>
+        ))}
+      </ul>
+    );
+  }
 
   return (
     <section className="panel flex max-h-135 flex-col">
@@ -256,40 +305,16 @@ function EventFeedPanel() {
         <h2 className="text-sm font-semibold">Live activity</h2>
         <RealtimeConnectionIndicator compact />
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {isLoading ? (
-          <LoadingSkeleton rows={8} columns={2} />
-        ) : isError ? (
-          <ErrorState
-            description={(error as Error).message}
-            onRetry={() => void refetch()}
-            className="m-3"
-          />
-        ) : (data ?? []).length === 0 ? (
-          <EmptyState title="No recent activity" />
-        ) : (
-          <ul className="divide-border divide-y font-mono text-xs">
-            {(data ?? []).map((e) => (
-              <li key={e.id} className="flex items-start gap-2 px-3 py-2">
-                <span className={tone[e.severity] ?? ""} aria-hidden>
-                  {e.severity === "error" ? (
-                    <TrendingDown className="size-3.5" />
-                  ) : (
-                    <Activity className="size-3.5" />
-                  )}
-                </span>
-                <span className="min-w-0 flex-1 wrap-break-word">{e.message}</span>
-                <RelativeTime value={e.timestamp} className="shrink-0 text-[11px]" />
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">{content}</div>
     </section>
   );
 }
 
-function PanelHeader({ title, to, linkLabel }: { title: string; to: string; linkLabel: string }) {
+function PanelHeader({
+  title,
+  to,
+  linkLabel,
+}: Readonly<{ title: string; to: string; linkLabel: string }>) {
   return (
     <div className="border-border flex items-center justify-between border-b px-3 py-2">
       <h2 className="text-sm font-semibold">{title}</h2>
