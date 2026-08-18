@@ -83,4 +83,19 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>, 
         var fetched = await getResponse.Content.ReadFromJsonAsync<MonitorStatusInfo>();
         Assert.Equal(created.Id, fetched?.Id);
     }
+
+    [Fact]
+    public async Task PortfolioDemo_CanSeedAndResetTaggedMonitors()
+    {
+        var seedResponse = await _client.PostAsync("/api/demo/seed", null);
+        Assert.Equal(HttpStatusCode.Created, seedResponse.StatusCode);
+
+        var monitors = await _client.GetFromJsonAsync<MonitorStatusInfo[]>("/api/monitors");
+        Assert.Equal(2, monitors?.Length);
+        Assert.All(monitors!, monitor => Assert.Contains("Portfolio demo", monitor.Name));
+
+        var resetResponse = await _client.DeleteAsync("/api/demo/seed");
+        Assert.Equal(HttpStatusCode.NoContent, resetResponse.StatusCode);
+        Assert.Empty(await _client.GetFromJsonAsync<MonitorStatusInfo[]>("/api/monitors") ?? []);
+    }
 }

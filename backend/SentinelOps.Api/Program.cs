@@ -264,6 +264,69 @@ public class Program
 
         app.MapGet("/api/agents", () => Results.Ok(regions));
 
+        if (app.Environment.IsDevelopment())
+        {
+            app.MapPost("/api/demo/seed", async (AppDbContext db) =>
+            {
+                var now = DateTimeOffset.UtcNow;
+                var demoMonitors = new[]
+                {
+                    new MonitorEntity
+                    {
+                        Id = $"mon_{Guid.NewGuid():N}",
+                        Name = "Portfolio demo · healthy endpoint",
+                        Url = "https://example.com",
+                        Method = "GET",
+                        ExpectedStatus = [200],
+                        IntervalSeconds = 15,
+                        TimeoutMs = 5000,
+                        Regions = ["local"],
+                        Tags = ["portfolio-demo", "healthy"],
+                        Enabled = true,
+                        CurrentStatus = "unknown",
+                        Uptime24h = 100,
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                    },
+                    new MonitorEntity
+                    {
+                        Id = $"mon_{Guid.NewGuid():N}",
+                        Name = "Portfolio demo · incident flow",
+                        Url = "https://example.com/portfolio-demo-failure",
+                        Method = "GET",
+                        ExpectedStatus = [200],
+                        IntervalSeconds = 15,
+                        TimeoutMs = 5000,
+                        Regions = ["local"],
+                        Tags = ["portfolio-demo", "incident"] ,
+                        Enabled = true,
+                        CurrentStatus = "unknown",
+                        Uptime24h = 100,
+                        CreatedAt = now,
+                        UpdatedAt = now,
+                    },
+                };
+
+                db.Monitors.AddRange(demoMonitors);
+                await db.SaveChangesAsync();
+                return Results.Created("/api/demo/seed", demoMonitors.Select(ToMonitorDto));
+            });
+
+            app.MapDelete("/api/demo/seed", async (AppDbContext db) =>
+            {
+                var demoMonitors = await db.Monitors
+                    .ToListAsync();
+                demoMonitors = demoMonitors
+                    .Where(m => m.Tags.Contains("portfolio-demo"))
+                    .ToList();
+                var ids = demoMonitors.Select(m => m.Id).ToArray();
+                db.CheckResults.RemoveRange(db.CheckResults.Where(c => ids.Contains(c.MonitorId)));
+                db.Monitors.RemoveRange(demoMonitors);
+                await db.SaveChangesAsync();
+                return Results.NoContent();
+            });
+        }
+
         app.MapGet("/api/monitors", async (AppDbContext db) =>
             Results.Ok((await db.Monitors.OrderBy(m => m.Name).ToListAsync()).Select(ToMonitorDto)));
 
