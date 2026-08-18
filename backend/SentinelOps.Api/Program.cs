@@ -153,6 +153,22 @@ public record StatusHistoryEntry(
 
 public class Program
 {
+    private const string StatusUp = "up";
+    private const string StatusDegraded = "degraded";
+    private const string StatusDown = "down";
+    private const string StatusPaused = "paused";
+    private const string StatusUnknown = "unknown";
+    private const string IncidentResolved = "resolved";
+    private const string PreviewAgentVersion = "0.4.2-preview";
+
+    protected Program()
+    {
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Major Code Smell",
+        "S3776",
+        Justification = "Minimal API endpoint composition keeps the application's route contract in one place.")]
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
@@ -211,12 +227,12 @@ public class Program
         // process actually performing checks.
         var regions = new List<Region>
         {
-            new("us-east", "us-east-1", "Ashburn, US", "0.4.2-preview", DateTimeOffset.UtcNow.AddMinutes(-12), 42, true),
-            new("us-west", "us-west-2", "Portland, US", "0.4.2-preview", DateTimeOffset.UtcNow.AddMinutes(-21), 38, true),
+            new("us-east", "us-east-1", "Ashburn, US", PreviewAgentVersion, DateTimeOffset.UtcNow.AddMinutes(-12), 42, true),
+            new("us-west", "us-west-2", "Portland, US", PreviewAgentVersion, DateTimeOffset.UtcNow.AddMinutes(-21), 38, true),
             new("eu-central", "eu-central-1", "Frankfurt, DE", "0.4.1-preview", DateTimeOffset.UtcNow.AddMinutes(-34), 35, true),
             new("eu-west", "eu-west-1", "Dublin, IE", "0.4.1-preview", DateTimeOffset.UtcNow.AddMinutes(-9), 0, false),
-            new("ap-south", "ap-south-1", "Mumbai, IN", "0.4.2-preview", DateTimeOffset.UtcNow.AddMinutes(-47), 27, true),
-            new("ap-northeast", "ap-northeast-1", "Tokyo, JP", "0.4.2-preview", DateTimeOffset.UtcNow.AddMinutes(-52), 24, true),
+            new("ap-south", "ap-south-1", "Mumbai, IN", PreviewAgentVersion, DateTimeOffset.UtcNow.AddMinutes(-47), 27, true),
+            new("ap-northeast", "ap-northeast-1", "Tokyo, JP", PreviewAgentVersion, DateTimeOffset.UtcNow.AddMinutes(-52), 24, true),
         };
 
         var settings = new AppSettings(
@@ -262,6 +278,25 @@ public class Program
             return sorted[index];
         }
 
+        static string NextMonitorStatus(bool enabled, string currentStatus)
+        {
+            if (!enabled) return StatusPaused;
+            return currentStatus == StatusPaused ? StatusUnknown : currentStatus;
+        }
+
+        static string EventSeverity(string eventType)
+        {
+            if (eventType is "resolved" or "recovered") return "success";
+            if (eventType == "detected") return "error";
+            return "info";
+        }
+
+        static string HistoryStatus(IEnumerable<CheckResultEntity> checks)
+        {
+            if (checks.All(c => c.Success)) return StatusUp;
+            return checks.Any(c => c.Success) ? StatusDegraded : StatusDown;
+        }
+
         app.MapGet("/api/agents", () => Results.Ok(regions));
 
         if (app.Environment.IsDevelopment())
@@ -283,7 +318,7 @@ public class Program
                         Regions = ["local"],
                         Tags = ["portfolio-demo", "healthy"],
                         Enabled = true,
-                        CurrentStatus = "unknown",
+                        CurrentStatus = StatusUnknown,
                         Uptime24h = 100,
                         CreatedAt = now,
                         UpdatedAt = now,
@@ -300,7 +335,7 @@ public class Program
                         Regions = ["local"],
                         Tags = ["portfolio-demo", "incident"] ,
                         Enabled = true,
-                        CurrentStatus = "unknown",
+                        CurrentStatus = StatusUnknown,
                         Uptime24h = 100,
                         CreatedAt = now,
                         UpdatedAt = now,
@@ -355,7 +390,7 @@ public class Program
                 Assertions = input.Assertions,
                 AlertChannels = input.AlertChannels,
                 Enabled = input.Enabled,
-                CurrentStatus = input.Enabled ? "unknown" : "paused",
+                CurrentStatus = input.Enabled ? StatusUnknown : StatusPaused,
                 Uptime24h = 100,
                 P95LatencyMs = 0,
                 LastCheckAt = null,
@@ -387,7 +422,7 @@ public class Program
             monitor.AlertChannels = input.AlertChannels;
             monitor.Enabled = input.Enabled;
             monitor.UpdatedAt = DateTimeOffset.UtcNow;
-            monitor.CurrentStatus = input.Enabled ? (monitor.CurrentStatus == "paused" ? "unknown" : monitor.CurrentStatus) : "paused";
+            monitor.CurrentStatus = NextMonitorStatus(input.Enabled, monitor.CurrentStatus);
 
             await db.SaveChangesAsync();
             return Results.Ok(ToMonitorDto(monitor));
@@ -400,7 +435,7 @@ public class Program
 
             var enabled = payload.TryGetValue("enabled", out var value) && value;
             monitor.Enabled = enabled;
-            monitor.CurrentStatus = enabled ? "unknown" : "paused";
+            monitor.CurrentStatus = enabled ? StatusUnknown : StatusPaused;
             monitor.UpdatedAt = DateTimeOffset.UtcNow;
 
             await db.SaveChangesAsync();
@@ -492,7 +527,7 @@ public class Program
                 .ToListAsync();
             checks.Reverse();
 
-            return Results.Ok(checks.Select(c => new { status = c.Success ? "up" : "down", timestamp = c.Timestamp }));
+            return Results.Ok(checks.Select(c => new { status = c.Success ? StatusUp : StatusDown, timestamp = c.Timestamp }));
         });
 
         app.MapGet("/api/incidents", async (AppDbContext db) =>
@@ -542,7 +577,7 @@ public class Program
 
             var actor = payload.GetValueOrDefault("actor", "you@sentinelops");
             var resolvedAt = DateTimeOffset.UtcNow;
-            incident.State = "resolved";
+            incident.State = IncidentResolved;
             incident.ResolvedAt = resolvedAt;
             incident.DurationSeconds = (int)(resolvedAt - incident.StartedAt).TotalSeconds;
             incident.AcknowledgedAt ??= resolvedAt;
@@ -552,7 +587,7 @@ public class Program
             {
                 Id = $"ev_{Guid.NewGuid():N}",
                 IncidentId = id,
-                Type = "resolved",
+                Type = IncidentResolved,
                 Timestamp = resolvedAt,
                 Actor = actor,
                 Message = "Marked resolved from the SentinelOps console",
@@ -599,17 +634,20 @@ public class Program
         app.MapGet("/api/dashboard/summary", async (AppDbContext db) =>
         {
             var monitors = await db.Monitors.ToListAsync();
-            var activeIncidents = await db.Incidents.CountAsync(i => i.State != "resolved");
+            var activeIncidents = await db.Incidents.CountAsync(i => i.State != IncidentResolved);
+
+            var availability = monitors.Count == 0 ? 100 : Math.Round(monitors.Average(m => m.Uptime24h), 3);
+            var p95Latency = monitors.Count == 0 ? 0 : monitors.Max(m => m.P95LatencyMs);
 
             return Results.Ok(new DashboardSummary(
                 DateTimeOffset.UtcNow,
-                monitors.Count(m => m.CurrentStatus == "up"),
-                monitors.Count(m => m.CurrentStatus == "degraded"),
-                monitors.Count(m => m.CurrentStatus == "down"),
-                monitors.Count(m => m.CurrentStatus == "paused"),
+                monitors.Count(m => m.CurrentStatus == StatusUp),
+                monitors.Count(m => m.CurrentStatus == StatusDegraded),
+                monitors.Count(m => m.CurrentStatus == StatusDown),
+                monitors.Count(m => m.CurrentStatus == StatusPaused),
                 activeIncidents,
-                monitors.Count == 0 ? 100 : Math.Round(monitors.Average(m => m.Uptime24h), 3),
-                monitors.Count == 0 ? 0 : monitors.Max(m => m.P95LatencyMs)));
+                availability,
+                p95Latency));
         });
 
         app.MapGet("/api/dashboard/events", async (AppDbContext db, int limit = 20) =>
@@ -626,7 +664,7 @@ public class Program
                 if (!incidentsById.TryGetValue(evt.IncidentId, out var incident)) continue;
                 items.Add(new EventFeedItem(
                     evt.Id, "incident",
-                    evt.Type == "resolved" || evt.Type == "recovered" ? "success" : evt.Type == "detected" ? "error" : "info",
+                    EventSeverity(evt.Type),
                     incident.MonitorId, incident.MonitorName, $"{incident.MonitorName}: {evt.Message}", evt.Timestamp));
             }
 
@@ -669,19 +707,19 @@ public class Program
                     .Select(g => new StatusHistoryEntry(
                         g.Key,
                         Math.Round(100.0 * g.Count(c => c.Success) / g.Count(), 2),
-                        g.All(c => c.Success) ? "up" : g.Any(c => c.Success) ? "degraded" : "down"))
+                        HistoryStatus(g)))
                     .ToList();
 
                 services.Add(new StatusPageService(monitor.Id, monitor.Name, monitor.CurrentStatus, availability90d, history));
             }
 
-            var overall = monitors.Any(m => m.CurrentStatus == "down") ? "down"
-                : monitors.Any(m => m.CurrentStatus == "degraded") ? "degraded"
-                : "up";
+            var overall = StatusUp;
+            if (monitors.Any(m => m.CurrentStatus == StatusDegraded)) overall = StatusDegraded;
+            if (monitors.Any(m => m.CurrentStatus == StatusDown)) overall = StatusDown;
 
-            var activeIncidents = (await db.Incidents.Where(i => i.State != "resolved").OrderByDescending(i => i.StartedAt).ToListAsync())
+            var activeIncidents = (await db.Incidents.Where(i => i.State != IncidentResolved).OrderByDescending(i => i.StartedAt).ToListAsync())
                 .Select(ToIncidentDto).ToList();
-            var recentResolved = (await db.Incidents.Where(i => i.State == "resolved").OrderByDescending(i => i.ResolvedAt).Take(10).ToListAsync())
+            var recentResolved = (await db.Incidents.Where(i => i.State == IncidentResolved).OrderByDescending(i => i.ResolvedAt).Take(10).ToListAsync())
                 .Select(ToIncidentDto).ToList();
 
             return Results.Ok(new

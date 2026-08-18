@@ -37,7 +37,25 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>, 
         _client = customFactory.CreateClient();
     }
 
-    public void Dispose() => _connection.Dispose();
+    private bool _disposed;
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (_disposed) return;
+
+        if (disposing)
+        {
+            _connection.Dispose();
+        }
+
+        _disposed = true;
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
 
     [Fact]
     public async Task GetMonitors_StartsEmpty()
