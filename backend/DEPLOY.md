@@ -19,6 +19,26 @@ but nothing is charged as long as you stay under the always-free Cloud Run
 quota (2M requests/mo, 360k GB-seconds, 180k vCPU-seconds/mo). Consider
 setting a budget alert as a safety net.
 
+## Where deployment values go
+
+The values in the GitHub Actions secret table at the end of this document do
+not belong in this file or in the repository. Add them as **repository secrets**
+at:
+
+`https://github.com/2xA-ron/sentinel-status/settings/secrets/actions`
+
+Choose **New repository secret** and add each name separately:
+
+* `GCP_PROJECT_ID` — Google Cloud project ID.
+* `GCP_SA_KEY` — complete Google service-account JSON; never commit this file.
+* `CLOUDFLARE_API_TOKEN` — scoped Cloudflare Workers deployment token.
+* `CLOUDFLARE_ACCOUNT_ID` — Cloudflare account ID.
+* `VITE_API_BASE_URL` — deployed API URL, such as `https://sentinelops-api-xxxxx-uc.a.run.app`.
+
+The workflows read these through `${{ secrets.SECRET_NAME }}`. Do not replace
+those expressions with literal credentials. The local `.env` file is only for
+local development and is ignored by git.
+
 ## 1. Deploy the API to Cloud Run
 
 Run from the repo root. `--source` builds the `Dockerfile` already added at
