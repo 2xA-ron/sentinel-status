@@ -30,6 +30,10 @@ jobs:
             echo "::error::GCP_PROJECT_ID is missing. Add the Google Cloud project ID as a repository secret."
             exit 1
           fi
+          if [[ ! "$GCP_PROJECT_ID" =~ ^[a-z][a-z0-9-]{4,28}[a-z0-9]$ ]]; then
+            echo "::error::GCP_PROJECT_ID must contain only a valid Google Cloud project ID, such as aaron-rodriguez-portfolio."
+            exit 1
+          fi
 
       - id: auth
         uses: google-github-actions/auth@v2
@@ -42,9 +46,11 @@ jobs:
       # previously deployed revision when they aren't passed explicitly, so
       # FRONTEND_ORIGINS set manually per backend/DEPLOY.md carries forward.
       - name: Deploy to Cloud Run
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           gcloud run deploy sentinelops-api \
-            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --project "$GCP_PROJECT_ID" \
             --source backend/SentinelOps.Api \
             --region us-central1 \
             --allow-unauthenticated \
