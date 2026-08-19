@@ -6,10 +6,8 @@ import type {
   Incident,
   IncidentEvent,
   Monitor,
-  MonitorInput,
   Region,
   StatusPageData,
-  TimeRange,
   UptimeWindow,
 } from "@/models";
 import {
@@ -23,10 +21,9 @@ import {
   type SettingsService,
 } from "./contracts";
 
-const API_BASE = (import.meta.env["VITE_API_BASE_URL"] ?? "http://localhost:5283").replace(
-  /\/+$/,
-  "",
-);
+const configuredApiBase = import.meta.env["VITE_API_BASE_URL"] ?? "http://localhost:5283";
+let API_BASE = configuredApiBase;
+while (API_BASE.endsWith("/")) API_BASE = API_BASE.slice(0, -1);
 
 function buildQueryString(
   query?: Record<string, string | number | boolean | string[] | undefined>,
@@ -52,7 +49,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...(init.headers ?? {}),
+      ...init.headers,
     },
   });
 
@@ -60,12 +57,12 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const parsed = text ? JSON.parse(text) : null;
 
   if (!res.ok) {
-    const message =
-      parsed && typeof parsed === "object" && "detail" in parsed
-        ? String((parsed as { detail?: string }).detail)
-        : parsed && typeof parsed === "object" && "message" in parsed
-          ? String((parsed as { message?: string }).message)
-          : `Request failed with status ${res.status}`;
+    let message = `Request failed with status ${res.status}`;
+    if (parsed && typeof parsed === "object" && "detail" in parsed) {
+      message = String((parsed as { detail?: string }).detail);
+    } else if (parsed && typeof parsed === "object" && "message" in parsed) {
+      message = String((parsed as { message?: string }).message);
+    }
 
     if (res.status === 404) throw new NotFoundError(message);
     throw new ApiError(message, res.status);

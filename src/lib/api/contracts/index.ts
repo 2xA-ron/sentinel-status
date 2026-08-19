@@ -56,7 +56,7 @@ export interface DashboardService {
   events(limit?: number): Promise<EventFeedItem[]>;
 }
 
-export interface StatusPageService_ {
+export interface StatusPageService {
   get(): Promise<StatusPageData>;
 }
 
