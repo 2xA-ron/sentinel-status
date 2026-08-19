@@ -42,3 +42,4 @@ backend/**/obj/
 backend/SentinelOps.Api/*.db
 backend/SentinelOps.Api/*.db-shm
 backend/SentinelOps.Api/*.db-wal
+gh-actions-key.json
