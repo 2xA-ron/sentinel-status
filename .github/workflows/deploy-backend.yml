@@ -30,9 +30,11 @@ jobs:
             echo "::error::GCP_PROJECT_ID is missing. Add the Google Cloud project ID as a repository secret."
             exit 1
           fi
-          # Trim whitespace/newlines a pasted secret value may carry before validating.
-          GCP_PROJECT_ID="$(printf '%s' "$GCP_PROJECT_ID" | tr -d '[:space:]')"
+          # Strip whitespace, quotes, and non-ASCII bytes a pasted secret may carry.
+          GCP_PROJECT_ID="$(printf '%s' "$GCP_PROJECT_ID" | tr -d '[:space:]"'\''' | tr -cd '[:print:]')"
           echo "GCP_PROJECT_ID=$GCP_PROJECT_ID" >> "$GITHUB_ENV"
+          # Project IDs aren't secret, so print the sanitized value to debug hidden-character issues.
+          echo "Sanitized GCP_PROJECT_ID: '$GCP_PROJECT_ID' (length ${#GCP_PROJECT_ID})"
           if [[ ! "$GCP_PROJECT_ID" =~ ^[a-z][a-z0-9-]{4,28}[a-z0-9]$ ]]; then
             echo "::error::GCP_PROJECT_ID must contain only a valid Google Cloud project ID, such as aaron-rodriguez-portfolio."
             exit 1
