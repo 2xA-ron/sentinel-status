@@ -22,7 +22,11 @@ import {
 } from "./contracts";
 
 const configuredApiBase = import.meta.env["VITE_API_BASE_URL"] ?? "http://localhost:5283";
-let API_BASE = configuredApiBase;
+// During SSR (Node.js inside Docker), use the nginx service name so the container
+// can reach the Cloud Run API through the nginx reverse proxy on the Docker network.
+// In the browser, use relative URLs (same-origin, no CORS) — the request goes
+// through the host's nginx on the same port the page was served from.
+let API_BASE = import.meta.env.SSR ? "http://nginx:8080" : "";
 while (API_BASE.endsWith("/")) API_BASE = API_BASE.slice(0, -1);
 
 function buildQueryString(
