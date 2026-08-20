@@ -22,3 +22,16 @@ services:
     depends_on:
       - frontend
     restart: unless-stopped
+
+  # Cloudflare Tunnel — makes the dashboard accessible from the internet.
+  # Quick tunnel (default): no account needed, gives you a *.trycloudflare.com URL.
+  #   Get the URL with: docker compose -f docker-compose.pi.yml logs cloudflared | grep trycloudflare
+  # Permanent tunnel: replace the command with:
+  #   command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: sentinelops-tunnel
+    command: tunnel --no-autoupdate --url http://nginx:8080
+    restart: unless-stopped
+    depends_on:
+      - nginx
