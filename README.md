@@ -4,6 +4,8 @@ A full-stack uptime monitoring and incident response dashboard. The React/TanSta
 Start frontend talks to an ASP.NET Core 8 API backed by SQLite and receives live
 check and incident updates over SignalR.
 
+> See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full product vision and technical roadmap.
+
 ## Current implementation
 
 The application is wired for local, end-to-end use:
