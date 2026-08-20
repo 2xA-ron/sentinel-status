@@ -1,0 +1,10 @@
+node_modules
+.output
+.git
+.gitignore
+*.md
+.env*
+.vscode
+.idea
+*.log
+tmp

@@ -64,31 +64,75 @@ Runtime data is stored in `sentinelops.db` in the directory where the API proces
 starts and is ignored by git. From the repository-root command above, delete
 `sentinelops.db` when you want a clean local demo database.
 
-## Always-on Raspberry Pi 5
+## Always-on Raspberry Pi 5 with Google Cloud Run
 
-The Pi is a good home monitor host. Use a 64-bit Raspberry Pi OS install with
-Docker, copy this repository to the Pi, and run the API container from the
-repository root:
+The Pi serves the frontend and proxies API calls to your Cloud Run deployment. This gives you:
+- ✅ Frontend hosted locally on the Pi
+- ✅ API running on Google Cloud Run (already deployed)
+- ✅ All requests same-origin from the browser's perspective (no CORS issues)
+- ✅ Access from any device on your network
 
+### Prerequisites
+
+- 64-bit Raspberry Pi OS with Docker installed
+- Your Cloud Run API already deployed (e.g., `sentinelops-api-pin2vchuja-uc.a.run.app`)
+
+### Setup
+
+1. Copy this repository to the Pi:
+   ```sh
+   git clone https://github.com/2xA-ron/sentinel-status.git
+   cd sentinel-status
+   ```
+
+2. Run the deployment script:
+   ```sh
+   ./deploy/pi/up.sh
+   ```
+
+   This will:
+   - Build the frontend Docker image
+   - Start the frontend container (serves the React app)
+   - Start the nginx container (proxies to frontend and Cloud Run)
+
+3. Access the dashboard at `http://<pi-ip>:8080` from any device on your network.
+
+### How it works
+
+```
+Browser ──► :8080 (nginx) ──┬─ /api/*, /realtime/*  ──► Cloud Run API
+                            └─ / (frontend)          ──► frontend:3000 (React app)
+```
+
+- Nginx listens on port 8080
+- API requests (`/api/*`, `/realtime/*`) are proxied to your Cloud Run deployment
+- All other requests are proxied to the frontend container
+- From the browser's perspective, everything is same-origin (no CORS)
+
+### Management
+
+View logs:
 ```sh
-cd sentinel-status/backend
+docker compose -f docker-compose.pi.yml logs -f
+```
+
+Stop the deployment:
+```sh
+docker compose -f docker-compose.pi.yml down
+```
+
+Restart:
+```sh
+docker compose -f docker-compose.pi.yml restart
+```
+
+### Customizing the Cloud Run URL
+
+If your Cloud Run service has a different URL, edit `deploy/pi/nginx/nginx.conf` and replace `sentinelops-api-pin2vchuja-uc.a.run.app` with your service URL, then restart:
+```sh
 docker compose -f docker-compose.pi.yml up -d --build
 ```
-
-The API will be available on the Pi at `http://<pi-hostname-or-ip>:5283` and
-will restart after reboots or process failures. SQLite is stored in a Docker
-volume named `sentinelops-data`, so rebuilding the image does not erase monitor
-history. Check it with:
-
-```sh
-docker compose -f docker-compose.pi.yml ps
-docker compose -f docker-compose.pi.yml logs -f sentinelops-api
-```
-
-For personal LAN use, run the frontend on your computer with
-`VITE_API_BASE_URL=http://<pi-hostname-or-ip>:5283` in `.env`. For a public
-portfolio demo, do not port-forward the Pi directly to the internet. Deploy the
-frontend through Cloudflare and expose the API through a Cloudflare Tunnel or
+ or
 Tailscale Funnel, then set `FRONTEND_ORIGINS` to the exact public frontend URL.
 Keep the Pi's database and real monitor URLs out of the recording; use the
 development portfolio seed locally when you need a repeatable showcase.

@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/pi/frontend.Dockerfile
+    container_name: sentinelops-frontend
+    environment:
+      - NITRO_PORT=3000
+      - NITRO_HOST=0.0.0.0
+      - VITE_API_BASE_URL=http://localhost:8080
+    expose:
+      - "3000"
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: ./deploy/pi/nginx
+      dockerfile: Dockerfile
+    container_name: sentinelops-nginx
+    ports:
+      - "8080:8080"
+    depends_on:
+      - frontend
+    restart: unless-stopped
