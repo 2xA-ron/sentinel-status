@@ -17,8 +17,11 @@ import { RealtimeConnectionIndicator } from "@/components/common/RealtimeConnect
 import { formatMs, formatPercent } from "@/utils/format";
 import { Button } from "@/components/ui/button";
 
+// Inlined query key to avoid circular dependency during SSR module loading.
+// qk.dashboardSummary() would reference qk from a sibling chunk that hasn't
+// finished loading yet when this module is first evaluated on the server.
 const summaryQuery = queryOptions({
-  queryKey: qk.dashboardSummary(),
+  queryKey: ["dashboard", "summary"] as const,
   queryFn: () => dashboardApi.summary(),
 });
 
