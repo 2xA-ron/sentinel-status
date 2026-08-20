@@ -173,11 +173,28 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        builder.Services.AddSignalR();
+        // SignalR with Redis backplane.
+        // Without Redis, SignalR tracks connections in server memory. If Cloud Run
+        // scales to 2+ instances, a message published by instance A won't reach
+        // clients connected to instance B. Redis acts as a shared pub/sub bus —
+        // every instance subscribes to the same Redis channel, so messages from
+        // any instance reach every connected client regardless of which instance
+        // they hit. The REDIS_CONNECTION env var is optional — when not set,
+        // SignalR falls back to in-memory (fine for single-instance dev).
+        var redisConnection = Environment.GetEnvironmentVariable("REDIS_CONNECTION");
+        var signalR = builder.Services.AddSignalR();
+        if (!string.IsNullOrWhiteSpace(redisConnection))
+        {
+            signalR.AddStackExchangeRedis(redisConnection, opts =>
+            {
+                opts.Configuration.ChannelPrefix = "SentinelOps";
+            });
+        }
         builder.Services.AddHttpClient("monitor-check", client => client.Timeout = TimeSpan.FromSeconds(30));
 
-        var dbPath = Environment.GetEnvironmentVariable("SENTINELOPS_DB_PATH") ?? "sentinelops.db";
-        builder.Services.AddDbContext<AppDbContext>(opt => opt.UseSqlite($"Data Source={dbPath}"));
+        var connString = Environment.GetEnvironmentVariable("CONNECTION_STRING")
+                         ?? "Host=localhost;Database=sentinelops;Username=sentinelops;Password=sentinelops";
+        builder.Services.AddDbContext<AppDbContext>(opt => opt.UseNpgsql(connString));
         builder.Services.AddHostedService<MonitorCheckService>();
 
         // Deployed frontend origin(s), e.g. https://sentinel-status.pages.dev or a custom

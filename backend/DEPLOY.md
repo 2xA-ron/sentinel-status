@@ -39,7 +39,36 @@ The workflows read these through `${{ secrets.SECRET_NAME }}`. Do not replace
 those expressions with literal credentials. The local `.env` file is only for
 local development and is ignored by git.
 
-## 1. Deploy the API to Cloud Run
+## 2. Provision PostgreSQL (free tier)
+
+Cloud Run is serverless — its filesystem is ephemeral. When your API restarts
+or scales to zero, any SQLite `.db` file vanishes. PostgreSQL lives outside
+Cloud Run so your data survives.
+
+**Recommended: Neon** (neon.tech) — free tier includes 0.5 GB storage, 1 project.
+
+1. Sign up at https://neon.tech
+2. Create a project named `sentinelops`
+3. Copy the connection string from the dashboard (looks like
+   `postgresql://sentinelops:password@ep-xxx.us-east-2.aws.neon.tech/sentinelops?sslmode=require`)
+4. Convert it to Npgsql format:
+   `Host=ep-xxx.us-east-2.aws.neon.tech;Database=sentinelops;Username=sentinelops;Password=password;SSL Mode=Require`
+
+Other free PostgreSQL options: Supabase (500 MB), Aiven, Render (90 days).
+
+## 3. Provision Redis (free tier, optional but recommended)
+
+Redis powers the SignalR backplane (so messages reach all clients regardless of
+which Cloud Run instance they hit) and will be used for rate limiting and
+caching. Works without Redis — SignalR falls back to in-memory for single-instance.
+
+**Recommended: Upstash** (upstash.com) — free tier 256 MB.
+
+1. Sign up at https://upstash.com
+2. Create a Redis database
+3. Copy the connection string (`rediss://...`)
+
+## 4. Deploy the API to Cloud Run
 
 Run from the repo root. `--source` builds the `Dockerfile` already added at
 `backend/SentinelOps.Api/Dockerfile` via Cloud Build — no local Docker needed.
@@ -49,13 +78,15 @@ gcloud run deploy sentinelops-api \
   --source backend/SentinelOps.Api \
   --region us-central1 \
   --allow-unauthenticated \
+  --set-env-vars CONNECTION_STRING="Host=ep-xxx.us-east-2.aws.neon.tech;Database=sentinelops;Username=sentinelops;Password=password;SSL Mode=Require" \
+  --set-env-vars REDIS_CONNECTION="rediss://default:password@xxx.upstash.io:6379" \
   --set-env-vars FRONTEND_ORIGINS=https://placeholder.pages.dev
 ```
 
 Note the `Service URL` it prints (something like
-`https://sentinelops-api-xxxxx-uc.a.run.app`) — you'll need it in step 2.
+`https://sentinelops-api-xxxxx-uc.a.run.app`) — you'll need it in step 5.
 
-## 2. Point the frontend at it
+## 5. Point the frontend at it
 
 ```bash
 cp .env.example .env   # if you haven't already
@@ -66,7 +97,7 @@ npm run deploy:cloudflare
 Note the frontend URL Wrangler prints (a `*.workers.dev` URL, or your
 Cloudflare custom domain/route if you've mapped one).
 
-## 3. Close the loop: update CORS with the real frontend URL
+## 6. Close the loop: update CORS with the real frontend URL
 
 ```bash
 gcloud run services update sentinelops-api \
@@ -77,7 +108,7 @@ gcloud run services update sentinelops-api \
 `FRONTEND_ORIGINS` is comma-separated if you need more than one origin (e.g.
 a `*.workers.dev` URL plus a custom domain).
 
-## 4. Optional: put the API behind your own domain via Cloudflare
+## 7. Optional: put the API behind your own domain via Cloudflare
 
 Simplest approach — no Cloud Run domain mapping needed, keeps Cloudflare's
 proxy/WAF in front:
@@ -88,16 +119,16 @@ proxy/WAF in front:
 2. In Cloudflare SSL/TLS settings, set the mode to **Full** (not Flexible,
    not Full Strict — Cloud Run's cert is valid for `*.run.app`, not your
    custom domain, so Full works without extra cert setup).
-3. Re-run step 3 with `FRONTEND_ORIGINS` unchanged, but now use
-   `https://api.yourdomain.com` as `VITE_API_BASE_URL` in step 2 instead of
+3. Re-run step 6 with `FRONTEND_ORIGINS` unchanged, but now use
+   `https://api.yourdomain.com` as `VITE_API_BASE_URL` in step 5 instead of
    the raw `*.run.app` URL, then redeploy the frontend.
 
 WebSockets (the `/realtime` SignalR hub) pass through Cloudflare's proxy on
 the free plan by default — nothing extra to enable.
 
-## 5. CI/CD via GitHub Actions
+## 8. CI/CD via GitHub Actions
 
-Two workflows automate steps 1–2 on every push to `main`:
+Two workflows automate steps 2–5 on every push to `main`:
 
 - `.github/workflows/deploy-backend.yml` — redeploys the API when
   `backend/**` changes.
@@ -105,7 +136,7 @@ Two workflows automate steps 1–2 on every push to `main`:
   frontend when frontend source changes.
 
 Both also support manual runs from the Actions tab (`workflow_dispatch`).
-They only run steps 1–2 — do step 3 (updating `FRONTEND_ORIGINS`) and step 4
+They only run steps 2–5 — do step 6 (updating `FRONTEND_ORIGINS`) and step 7
 (custom domain) by hand once, since those rarely change.
 
 ### One-time setup: GCP service account for GitHub Actions
@@ -163,4 +194,10 @@ Add these under **Settings → Secrets and variables → Actions**:
 | `GCP_SA_KEY` | backend | contents of `gh-actions-key.json` |
 | `CLOUDFLARE_API_TOKEN` | frontend | token from the step above |
 | `CLOUDFLARE_ACCOUNT_ID` | frontend | Cloudflare dashboard → right sidebar of any domain, or Workers & Pages overview |
-| `VITE_API_BASE_URL` | frontend | the Cloud Run URL (or custom domain, once step 4 is done) |
+| `CONNECTION_STRING` | backend | your Neon PostgreSQL connection string |
+| `REDIS_CONNECTION` | backend | your Upstash Redis connection string (optional) |
+| `CONNECTION_STRING` | backend | your Neon PostgreSQL connection string |
+| `REDIS_CONNECTION` | backend | your Upstash Redis connection string (optional) |
+| `CONNECTION_STRING` | backend | your Neon PostgreSQL connection string |
+| `REDIS_CONNECTION` | backend | your Upstash Redis connection string (optional) |
+| `VITE_API_BASE_URL` | frontend | the Cloud Run URL (or custom domain, once step 7 is done) |

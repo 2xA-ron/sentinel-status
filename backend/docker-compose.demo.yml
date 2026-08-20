@@ -1,4 +1,24 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sentinelops-postgres
+    environment:
+      POSTGRES_DB: sentinelops
+      POSTGRES_USER: sentinelops
+      POSTGRES_PASSWORD: sentinelops
+    ports:
+      - "5432:5432"
+    volumes:
+      - sentinelops-pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: sentinelops-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
   sentinelops-demo-api:
     build:
       context: ./SentinelOps.Api
@@ -9,10 +29,12 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORTS: 8080
-      SENTINELOPS_DB_PATH: /data/sentinelops-demo.db
+      CONNECTION_STRING: Host=postgres;Database=sentinelops;Username=sentinelops;Password=sentinelops
+      REDIS_CONNECTION: redis:6379
       FRONTEND_ORIGINS: http://localhost:5173
-    volumes:
-      - sentinelops-demo-data:/data
+    depends_on:
+      - postgres
+      - redis
 
 volumes:
-  sentinelops-demo-data:
+  sentinelops-pgdata:
