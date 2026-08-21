@@ -70,7 +70,10 @@ export function RealtimeProvider({ children }: Readonly<{ children: ReactNode }>
   pausedRef.current = paused;
 
   useEffect(() => {
-    const hubUrl = new URL("/realtime", API_BASE).toString();
+    // API_BASE is "" in the browser (relative, same-origin) — URL's base argument
+    // must be an absolute URL if provided at all, so fall back to the page's own
+    // origin rather than passing "" straight through.
+    const hubUrl = new URL("/realtime", API_BASE || window.location.origin).toString();
     const connectionInstance = new HubConnectionBuilder()
       .withUrl(hubUrl)
       .withAutomaticReconnect()
