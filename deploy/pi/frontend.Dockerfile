@@ -12,6 +12,16 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Vite bakes VITE_* vars into the client bundle at build time — they must be build
+# args here, not container-runtime env vars (those only affect the Node server
+# process, not the already-built browser JS).
+ARG VITE_API_BASE_URL=http://localhost:8080
+ARG VITE_SSR_API_BASE_URL=http://nginx:8080
+ARG VITE_USE_RELATIVE_API=true
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_SSR_API_BASE_URL=${VITE_SSR_API_BASE_URL}
+ENV VITE_USE_RELATIVE_API=${VITE_USE_RELATIVE_API}
+
 # Build the app for Node.js server (not Cloudflare)
 RUN npm run build:pi
 

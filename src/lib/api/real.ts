@@ -22,15 +22,23 @@ import {
 } from "./contracts";
 
 const configuredApiBase = import.meta.env["VITE_API_BASE_URL"] ?? "http://localhost:5283";
-// During SSR, hit the API directly using VITE_API_BASE_URL (e.g. the Cloud Run URL) —
-// there's no browser to enforce CORS same-origin rules server-side. The one exception
-// is the Pi deploy, where the frontend container reaches Cloud Run through the nginx
-// reverse proxy on the Docker network instead, via VITE_SSR_API_BASE_URL (see
-// docker-compose.pi.yml). In the browser, use relative URLs (same-origin, no CORS) —
-// the request goes through whatever proxy/host served the page.
+// Two deploy shapes need different browser behavior, distinguished by VITE_USE_RELATIVE_API
+// (set at build time — see deploy/pi/frontend.Dockerfile):
+//  - Cloudflare Workers (default): the browser calls the API cross-origin using
+//    VITE_API_BASE_URL (the Cloud Run URL); the backend's FRONTEND_ORIGINS CORS
+//    config is what makes this safe.
+//  - Pi: the browser calls relative/same-origin URLs, which nginx reverse-proxies to
+//    Cloud Run on the same origin the page was served from — VITE_API_BASE_URL there
+//    is baked as e.g. http://localhost:8080, which only resolves correctly on the Pi
+//    itself, never on a viewer's own machine, so it can't be used directly in the browser.
+// SSR always hits the API directly — there's no browser enforcing CORS server-side —
+// using VITE_SSR_API_BASE_URL when set (the Pi's nginx proxy) or VITE_API_BASE_URL otherwise.
+const useRelativeApi = import.meta.env["VITE_USE_RELATIVE_API"] === "true";
 let API_BASE = import.meta.env.SSR
   ? (import.meta.env["VITE_SSR_API_BASE_URL"] ?? configuredApiBase)
-  : "";
+  : useRelativeApi
+    ? ""
+    : configuredApiBase;
 while (API_BASE.endsWith("/")) API_BASE = API_BASE.slice(0, -1);
 
 function buildQueryString(

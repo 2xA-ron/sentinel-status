@@ -3,14 +3,18 @@ services:
     build:
       context: .
       dockerfile: deploy/pi/frontend.Dockerfile
+      # VITE_* vars are baked into the client bundle at build time, so they must be
+      # build args, not container-runtime environment vars (those only reach the
+      # Node server process, not the already-built browser JS). Defaults live in
+      # the Dockerfile; override here if your setup differs.
+      args:
+        VITE_API_BASE_URL: http://localhost:8080
+        VITE_SSR_API_BASE_URL: http://nginx:8080
+        VITE_USE_RELATIVE_API: "true"
     container_name: sentinelops-frontend
     environment:
       - NITRO_PORT=3000
       - NITRO_HOST=0.0.0.0
-      - VITE_API_BASE_URL=http://localhost:8080
-      # SSR-only override: the frontend container reaches Cloud Run through the
-      # nginx reverse proxy on this Docker network, not through localhost.
-      - VITE_SSR_API_BASE_URL=http://nginx:8080
     expose:
       - "3000"
     restart: unless-stopped
