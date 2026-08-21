@@ -93,7 +93,9 @@ export function useCommandPalette() {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
+      // e.key can be undefined for some synthesized keydown events (autofill, IME
+      // composition, some virtual keyboards) — guard before calling toLowerCase().
+      if (e.key?.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((v) => !v);
       }
