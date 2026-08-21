@@ -1,7 +1,7 @@
 # SentinelOps
 
 A full-stack uptime monitoring and incident response dashboard. The React/TanStack
-Start frontend talks to an ASP.NET Core 8 API backed by SQLite and receives live
+Start frontend talks to an ASP.NET Core 8 API backed by PostgreSQL and receives live
 check and incident updates over SignalR.
 
 > See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full product vision and technical roadmap.
@@ -12,7 +12,7 @@ The application is wired for local, end-to-end use:
 
 * Create, edit, enable/disable, and delete HTTP monitors.
 * Run real outbound checks on each monitor's configured interval.
-* Persist check history, uptime statistics, and incidents in SQLite.
+* Persist check history, uptime statistics, and incidents in PostgreSQL.
 * Open, acknowledge, resolve, and add notes to incidents.
 * Stream check and incident events to connected browsers with SignalR.
 * View dashboard, monitor, incident, status page, agents, and settings screens.
@@ -22,7 +22,15 @@ the ASP.NET process and are not yet distributed across multiple machines.
 
 ## Run locally
 
-Prerequisites: Node.js/npm and the .NET 8 SDK.
+Prerequisites: Node.js/npm, the .NET 8 SDK, and a Postgres database. Easiest local
+option is the bundled demo compose file:
+
+```sh
+docker compose -f backend/docker-compose.demo.yml up -d postgres redis
+```
+
+That starts Postgres (and Redis, optional) on their default ports with credentials
+matching the API's local defaults, so no extra env vars are needed for local dev.
 
 Install the frontend dependencies once:
 
@@ -62,9 +70,9 @@ cp .env.example .env
 4. Create a deliberately failing monitor, or temporarily use an invalid URL, to demonstrate degraded/down state and incident creation after three consecutive failures.
 5. Acknowledge and resolve the incident, then inspect its timeline and the monitor's check history.
 
-Runtime data is stored in `sentinelops.db` in the directory where the API process
-starts and is ignored by git. From the repository-root command above, delete
-`sentinelops.db` when you want a clean local demo database.
+Runtime data is stored in the `postgres` container started above. Run
+`docker compose -f backend/docker-compose.demo.yml down -v` to drop the volume
+when you want a clean local demo database.
 
 ## Always-on Raspberry Pi 5 with Google Cloud Run
 
@@ -206,14 +214,14 @@ dotnet test backend/SentinelOps.sln
 Use the deployed URL and repository link only after you have deployed it and
 verified the public demo. A concise resume entry could be:
 
-> **SentinelOps | Full-stack uptime monitoring dashboard** — Built a React/TanStack Start and ASP.NET Core 8 application that performs scheduled HTTP health checks, persists check history and incident state with EF Core/SQLite, and streams live status updates through SignalR. Added responsive operational views for monitor management, incident response, uptime analytics, and status reporting, with automated API and SignalR tests.
+> **SentinelOps | Full-stack uptime monitoring dashboard** — Built a React/TanStack Start and ASP.NET Core 8 application that performs scheduled HTTP health checks, persists check history and incident state with EF Core/PostgreSQL, and streams live status updates through SignalR (with a Redis backplane for multi-instance deployments). Added responsive operational views for monitor management, incident response, uptime analytics, and status reporting, with automated API and SignalR tests.
 
 Good portfolio evidence to capture:
 
 * A short screen recording showing a successful check, a failing monitor, the resulting incident, and recovery.
 * A screenshot of the dashboard with the realtime indicator and event feed visible.
 * Links to the README, API tests, `MonitorCheckService`, and the live demo in the project description.
-* A brief architecture diagram showing browser -> REST/SignalR -> ASP.NET Core -> SQLite.
+* A brief architecture diagram showing browser -> REST/SignalR -> ASP.NET Core -> PostgreSQL.
 
 ## Cloudflare / Nitro deployment prep
 
