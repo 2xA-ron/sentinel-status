@@ -12,4 +12,11 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  nitro: {
+    cloudflare: {
+      // Fixes the deployed Worker's *.workers.dev URL instead of Nitro's
+      // auto-generated `2xa-ron-sentinel-status` name.
+      wrangler: { name: "sentinelops" },
+    },
+  },
 });
