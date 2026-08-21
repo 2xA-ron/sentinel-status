@@ -65,6 +65,7 @@ function Field({
   hint,
   children,
   className,
+  asGroup,
 }: {
   label: string;
   htmlFor: string;
@@ -72,12 +73,23 @@ function Field({
   hint?: string;
   children: React.ReactNode;
   className?: string;
+  /** Use for fields whose control isn't a single labelable element (e.g. a
+   * group of toggle buttons) — `<label for>` only works on labelable
+   * elements (input/select/textarea/button/etc.) per the HTML spec, so a
+   * wrapping `<div>` needs aria-labelledby instead, even with a matching id. */
+  asGroup?: boolean;
 }) {
   return (
     <div className={cn("space-y-1.5", className)}>
-      <Label htmlFor={htmlFor} className="text-xs">
-        {label}
-      </Label>
+      {asGroup ? (
+        <span id={`${htmlFor}-label`} className="text-xs font-medium">
+          {label}
+        </span>
+      ) : (
+        <Label htmlFor={htmlFor} className="text-xs">
+          {label}
+        </Label>
+      )}
       {children}
       {error ? (
         <p className="text-status-down text-[11px]">{error}</p>
@@ -251,8 +263,13 @@ export function MonitorForm({
           </Field>
         </div>
 
-        <Field label="Regions" htmlFor="regions" error={errors.regions}>
-          <div id="regions" className="flex flex-wrap gap-2">
+        <Field label="Regions" htmlFor="regions" error={errors.regions} asGroup>
+          <div
+            id="regions"
+            role="group"
+            aria-labelledby="regions-label"
+            className="flex flex-wrap gap-2"
+          >
             {ALL_REGIONS.map((r) => (
               <button
                 key={r}
