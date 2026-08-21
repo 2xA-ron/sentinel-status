@@ -32,9 +32,10 @@ interface RealtimeContextValue {
 const RealtimeContext = createContext<RealtimeContextValue | null>(null);
 
 const configuredApiBase = import.meta.env["VITE_API_BASE_URL"] ?? "http://localhost:5283";
-// During SSR (inside Docker container), use nginx service name to reach Cloud Run.
-// In browser, use relative URL (same-origin, no CORS).
-let API_BASE = import.meta.env.SSR ? "http://nginx:8080" : "";
+// See src/lib/api/real.ts for why SSR and browser resolve the API base differently.
+let API_BASE = import.meta.env.SSR
+  ? (import.meta.env["VITE_SSR_API_BASE_URL"] ?? configuredApiBase)
+  : "";
 while (API_BASE.endsWith("/")) API_BASE = API_BASE.slice(0, -1);
 
 /** Payload shape broadcast by MonitorCheckService after each real HTTP check. */

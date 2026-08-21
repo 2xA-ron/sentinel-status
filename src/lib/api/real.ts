@@ -22,11 +22,15 @@ import {
 } from "./contracts";
 
 const configuredApiBase = import.meta.env["VITE_API_BASE_URL"] ?? "http://localhost:5283";
-// During SSR (Node.js inside Docker), use the nginx service name so the container
-// can reach the Cloud Run API through the nginx reverse proxy on the Docker network.
-// In the browser, use relative URLs (same-origin, no CORS) — the request goes
-// through the host's nginx on the same port the page was served from.
-let API_BASE = import.meta.env.SSR ? "http://nginx:8080" : "";
+// During SSR, hit the API directly using VITE_API_BASE_URL (e.g. the Cloud Run URL) —
+// there's no browser to enforce CORS same-origin rules server-side. The one exception
+// is the Pi deploy, where the frontend container reaches Cloud Run through the nginx
+// reverse proxy on the Docker network instead, via VITE_SSR_API_BASE_URL (see
+// docker-compose.pi.yml). In the browser, use relative URLs (same-origin, no CORS) —
+// the request goes through whatever proxy/host served the page.
+let API_BASE = import.meta.env.SSR
+  ? (import.meta.env["VITE_SSR_API_BASE_URL"] ?? configuredApiBase)
+  : "";
 while (API_BASE.endsWith("/")) API_BASE = API_BASE.slice(0, -1);
 
 function buildQueryString(
