@@ -165,6 +165,8 @@ export function MonitorForm({
           <Field label="Name" htmlFor="name" error={errors.name}>
             <Input
               id="name"
+              name="name"
+              autoComplete="off"
               value={values.name}
               onChange={(e) => patch({ name: e.target.value })}
               placeholder="API — checkout"
@@ -187,6 +189,8 @@ export function MonitorForm({
           <Field label="URL" htmlFor="url" error={errors.url} className="md:col-span-2">
             <Input
               id="url"
+              name="url"
+              autoComplete="off"
               value={values.url}
               onChange={(e) => patch({ url: e.target.value })}
               className="font-mono text-xs"
@@ -201,6 +205,8 @@ export function MonitorForm({
           >
             <Textarea
               id="headers"
+              name="headers"
+              autoComplete="off"
               value={headersText}
               onChange={(e) => setHeadersText(e.target.value)}
               rows={3}
@@ -212,6 +218,8 @@ export function MonitorForm({
             <Field label="Body" htmlFor="body" className="md:col-span-2">
               <Textarea
                 id="body"
+                name="body"
+                autoComplete="off"
                 value={values.body ?? ""}
                 onChange={(e) => patch({ body: e.target.value || undefined })}
                 rows={3}
@@ -228,6 +236,8 @@ export function MonitorForm({
           <Field label="Interval (seconds)" htmlFor="interval" error={errors.intervalSeconds}>
             <Input
               id="interval"
+              name="interval"
+              autoComplete="off"
               type="number"
               inputMode="numeric"
               min={10}
@@ -239,6 +249,8 @@ export function MonitorForm({
           <Field label="Timeout (ms)" htmlFor="timeout" error={errors.timeoutMs}>
             <Input
               id="timeout"
+              name="timeout"
+              autoComplete="off"
               type="number"
               inputMode="numeric"
               min={100}
@@ -255,6 +267,8 @@ export function MonitorForm({
           >
             <Input
               id="expected"
+              name="expected"
+              autoComplete="off"
               value={statusText}
               onChange={(e) => setStatusText(e.target.value)}
               className="font-mono"
@@ -292,6 +306,8 @@ export function MonitorForm({
         <Field label="Tags" htmlFor="tags" hint="Comma separated">
           <Input
             id="tags"
+            name="tags"
+            autoComplete="off"
             value={tagsText}
             onChange={(e) => setTagsText(e.target.value)}
             className="font-mono text-xs"
