@@ -59,6 +59,21 @@ public record AppSettings(
     bool StatusPageEnabled,
     NotificationChannel[] Channels);
 
+/// <summary>
+/// All-optional counterpart to <see cref="AppSettings"/> for PATCH requests — a field
+/// omitted from the request body binds to null here and is left unchanged, instead of
+/// wiping it out the way binding straight to AppSettings would (every omitted field
+/// there defaults to null/0/false, and the handler used to just overwrite wholesale).
+/// </summary>
+public record AppSettingsPatch(
+    string? DefaultTimeRange = null,
+    int? DefaultIntervalSeconds = null,
+    int? DefaultTimeoutMs = null,
+    string[]? DefaultRegions = null,
+    string? OrganizationName = null,
+    bool? StatusPageEnabled = null,
+    NotificationChannel[]? Channels = null);
+
 public record Region(
     string Id,
     string Name,
@@ -750,9 +765,18 @@ public class Program
         });
 
         app.MapGet("/api/settings", () => Results.Ok(settings));
-        app.MapPatch("/api/settings", (AppSettings patch) =>
+        app.MapPatch("/api/settings", (AppSettingsPatch patch) =>
         {
-            settings = patch;
+            settings = settings with
+            {
+                DefaultTimeRange = patch.DefaultTimeRange ?? settings.DefaultTimeRange,
+                DefaultIntervalSeconds = patch.DefaultIntervalSeconds ?? settings.DefaultIntervalSeconds,
+                DefaultTimeoutMs = patch.DefaultTimeoutMs ?? settings.DefaultTimeoutMs,
+                DefaultRegions = patch.DefaultRegions ?? settings.DefaultRegions,
+                OrganizationName = patch.OrganizationName ?? settings.OrganizationName,
+                StatusPageEnabled = patch.StatusPageEnabled ?? settings.StatusPageEnabled,
+                Channels = patch.Channels ?? settings.Channels,
+            };
             return Results.Ok(settings);
         });
 
