@@ -9,7 +9,39 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { toast } from "sonner";
 import { qk } from "@/lib/query/keys";
+
+/**
+ * Short two-tone alert beep via the Web Audio API — no audio asset to host,
+ * works cross-browser. Browsers block audio until a user gesture has
+ * happened on the page at least once, so a failed attempt (before any
+ * click/keypress) is expected and silently ignored.
+ */
+function playAlertSound() {
+  try {
+    const AudioContextCtor =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AudioContextCtor();
+    const now = ctx.currentTime;
+    [880, 660].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, now + i * 0.15);
+      gain.gain.exponentialRampToValueAtTime(0.15, now + i * 0.15 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.15 + 0.18);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now + i * 0.15);
+      osc.stop(now + i * 0.15 + 0.2);
+    });
+    setTimeout(() => void ctx.close(), 500);
+  } catch {
+    // Best-effort — a popup toast still gets the alert across without sound.
+  }
+}
 
 export type ConnectionState = "connecting" | "connected" | "reconnecting" | "disconnected";
 
@@ -147,6 +179,13 @@ export function RealtimeProvider({ children }: Readonly<{ children: ReactNode }>
           ...prev,
         ].slice(0, 30),
       );
+
+      playAlertSound();
+      if (payload.type === "recovered" || payload.type === "resolved") {
+        toast.success(payload.message);
+      } else {
+        toast.error(payload.message);
+      }
 
       void queryClient.invalidateQueries({ queryKey: qk.incidents() });
       void queryClient.invalidateQueries({ queryKey: qk.dashboardSummary() });
