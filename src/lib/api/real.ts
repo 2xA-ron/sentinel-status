@@ -80,7 +80,29 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
 
   const text = await res.text();
-  const parsed = text ? JSON.parse(text) : null;
+  const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+  const looksLikeJson =
+    contentType.includes("application/json") ||
+    contentType.includes("+json") ||
+    text.trim().startsWith("{") ||
+    text.trim().startsWith("[");
+
+  let parsed: unknown = null;
+  if (text && looksLikeJson) {
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      throw new ApiError(
+        "The API returned a malformed JSON response. This usually means the request hit a login page or the wrong host.",
+        res.status,
+      );
+    }
+  } else if (text && !looksLikeJson) {
+    throw new ApiError(
+      "The API returned HTML instead of JSON. Check that the frontend is calling the correct API host and that Cloudflare Access is not intercepting the request.",
+      res.status,
+    );
+  }
 
   if (!res.ok) {
     let message = `Request failed with status ${res.status}`;
