@@ -21,6 +21,8 @@ import {
   type SettingsService,
 } from "./contracts";
 
+// Default cross-origin API host for the Cloudflare Workers deploy shape (see the
+// deploy-shape comment below); overridden at build time by VITE_API_BASE_URL.
 const defaultApiBase = "https://api.runtimem3sh.dev";
 const configuredApiBase = import.meta.env["VITE_API_BASE_URL"] ?? defaultApiBase;
 function normalizeApiBase(value: string) {
