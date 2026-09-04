@@ -21,7 +21,17 @@ import {
   type SettingsService,
 } from "./contracts";
 
-const configuredApiBase = import.meta.env["VITE_API_BASE_URL"] ?? "https://api.runtimem3sh.dev";
+const defaultApiBase = "https://api.runtimem3sh.dev";
+const configuredApiBase = import.meta.env["VITE_API_BASE_URL"] ?? defaultApiBase;
+function normalizeApiBase(value: string) {
+  try {
+    const url = new URL(value);
+    if (!/^https?:$/.test(url.protocol)) throw new Error("Unsupported API protocol");
+    return url.origin;
+  } catch {
+    return defaultApiBase;
+  }
+}
 // Two deploy shapes need different browser behavior, distinguished by VITE_USE_RELATIVE_API
 // (set at build time — see deploy/pi/frontend.Dockerfile):
 //  - Cloudflare Workers (default): the browser calls the API cross-origin using
@@ -35,10 +45,10 @@ const configuredApiBase = import.meta.env["VITE_API_BASE_URL"] ?? "https://api.r
 // using VITE_SSR_API_BASE_URL when set (the Pi's nginx proxy) or VITE_API_BASE_URL otherwise.
 const useRelativeApi = import.meta.env["VITE_USE_RELATIVE_API"] === "true";
 let API_BASE = import.meta.env.SSR
-  ? (import.meta.env["VITE_SSR_API_BASE_URL"] ?? configuredApiBase)
+  ? normalizeApiBase(import.meta.env["VITE_SSR_API_BASE_URL"] ?? configuredApiBase)
   : useRelativeApi
     ? ""
-    : configuredApiBase;
+    : normalizeApiBase(configuredApiBase);
 while (API_BASE.endsWith("/")) API_BASE = API_BASE.slice(0, -1);
 
 function buildQueryString(

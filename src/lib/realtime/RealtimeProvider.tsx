@@ -31,14 +31,24 @@ interface RealtimeContextValue {
 
 const RealtimeContext = createContext<RealtimeContextValue | null>(null);
 
-const configuredApiBase = import.meta.env["VITE_API_BASE_URL"] ?? "https://api.runtimem3sh.dev";
+const defaultApiBase = "https://api.runtimem3sh.dev";
+const configuredApiBase = import.meta.env["VITE_API_BASE_URL"] ?? defaultApiBase;
+function normalizeApiBase(value: string) {
+  try {
+    const url = new URL(value);
+    if (!/^https?:$/.test(url.protocol)) throw new Error("Unsupported API protocol");
+    return url.origin;
+  } catch {
+    return defaultApiBase;
+  }
+}
 // See src/lib/api/real.ts for why SSR and browser resolve the API base differently.
 const useRelativeApi = import.meta.env["VITE_USE_RELATIVE_API"] === "true";
 let API_BASE = import.meta.env.SSR
-  ? (import.meta.env["VITE_SSR_API_BASE_URL"] ?? configuredApiBase)
+  ? normalizeApiBase(import.meta.env["VITE_SSR_API_BASE_URL"] ?? configuredApiBase)
   : useRelativeApi
     ? ""
-    : configuredApiBase;
+    : normalizeApiBase(configuredApiBase);
 while (API_BASE.endsWith("/")) API_BASE = API_BASE.slice(0, -1);
 
 /** Payload shape broadcast by MonitorCheckService after each real HTTP check. */
