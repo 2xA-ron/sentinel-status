@@ -16,7 +16,10 @@ import {
 import { cn } from "@/lib/utils";
 
 const METHODS: HttpMethod[] = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"];
-const ALL_REGIONS = ["us-east", "us-west", "eu-central", "ap-south", "sa-east"];
+// Matches the 3 real regional checking agents (see backend/DEPLOY.md and
+// backend/SentinelOps.Api/Services/RegionNames.cs) — a monitor's Regions now
+// determine which real agent(s) actually check it, not just a cosmetic label.
+const ALL_REGIONS = ["us-central1", "us-east1", "europe-west1"];
 const CHANNELS = ["email:oncall", "slack:#alerts", "pagerduty:primary", "webhook:ops"];
 
 export type MonitorFormErrors = Partial<Record<keyof MonitorInput, string>>;
@@ -49,7 +52,7 @@ export function emptyMonitorInput(defaults?: Partial<MonitorInput>): MonitorInpu
     timeoutMs: 5000,
     headers: {},
     body: undefined,
-    regions: ["us-east"],
+    regions: ["us-central1"],
     tags: [],
     assertions: [],
     alertChannels: [],

@@ -152,12 +152,77 @@ Both requests should return HTTP 200. A `404` from the custom hostname while
 the `run.app` request returns `200` means the Origin Rule is missing or its
 host value does not exactly match the Cloud Run hostname.
 
-## 8. CI/CD via GitHub Actions
+## 8. Deploy regional checking agents (real multi-region checking)
 
-Two workflows automate steps 2–5 on every push to `main`:
+The API service you deployed in step 4 also runs one regional checking agent
+in-process, for region id `us-central1` (the default when `AGENT_REGION` is
+unset). To get real multi-region checking — detecting "down from one region,
+up from another" — deploy 2 more regional agents as separate Cloud Run
+services, built from the exact same source, but running in **agent-only
+mode**: no `CONNECTION_STRING` set, so `Program.cs` skips the database/API
+entirely and just polls the orchestrator over HTTP (see
+`backend/SentinelOps.Api/Services/RemoteAgentService.cs`).
+
+1. Pick a shared secret the orchestrator and every agent will use to
+   authenticate to each other, e.g. `openssl rand -hex 32`.
+
+2. Set it on the **existing** `sentinelops-api` service too (one-time, like
+   `FRONTEND_ORIGINS` in step 6 — CI redeploys reuse it automatically after
+   this):
+
+   ```bash
+   gcloud run services update sentinelops-api \
+     --region us-central1 \
+     --set-env-vars AGENT_SHARED_SECRET=<the-secret-from-step-1>
+   ```
+
+3. Deploy the 2 agent services (first time only — after this,
+   `.github/workflows/deploy-backend.yml`'s `deploy-agents` job redeploys the
+   same source on every push automatically, reusing these env vars):
+
+   ```bash
+   gcloud run deploy sentinelops-agent-us-east1 \
+     --source backend/SentinelOps.Api \
+     --region us-east1 \
+     --allow-unauthenticated \
+     --set-env-vars AGENT_REGION=us-east1,ORCHESTRATOR_URL=https://sentinelops-api-xxxxx-uc.a.run.app,AGENT_SHARED_SECRET=<the-secret-from-step-1>
+
+   gcloud run deploy sentinelops-agent-europe-west1 \
+     --source backend/SentinelOps.Api \
+     --region europe-west1 \
+     --allow-unauthenticated \
+     --set-env-vars AGENT_REGION=europe-west1,ORCHESTRATOR_URL=https://sentinelops-api-xxxxx-uc.a.run.app,AGENT_SHARED_SECRET=<the-secret-from-step-1>
+   ```
+
+   Replace the `sentinelops-api-xxxxx-uc.a.run.app` URL with the real one
+   from step 4 (or your custom `api.yourdomain.com` domain from step 7 — either
+   works, since these agents call it like any other client). `--allow-unauthenticated`
+   is fine here: these services have no database access and expose only a
+   trivial `/health` endpoint for Cloud Run's own liveness probe — the actual
+   `/api/agents/*` endpoints they call live on the orchestrator, gated by the
+   shared secret, not by anything on the agent side.
+
+4. Verify: `curl https://sentinelops-api-xxxxx-uc.a.run.app/api/agents` should
+   return 3 rows (`us-central1`, `us-east1`, `europe-west1`) with a fresh
+   `lastHeartbeat` on each, once all 3 have had a chance to check in
+   (heartbeats fire every ~15s).
+
+A monitor's `Regions` field now has real effect: only agents whose region id
+appears in a monitor's `Regions` will ever check it. If you add a region
+beyond these 3, add it to `RegionNames` in
+`backend/SentinelOps.Api/Services/RegionNames.cs` and to `ALL_REGIONS` in
+`src/components/monitors/MonitorForm.tsx` too, so the picklist and the
+deployed fleet stay in sync — v1 doesn't discover regions dynamically.
+
+## 9. CI/CD via GitHub Actions
+
+Two workflows automate steps 2–5 (plus the 2 regional agents from step 8,
+once they exist) on every push to `main`:
 
 - `.github/workflows/deploy-backend.yml` — redeploys the API when
-  `backend/**` changes.
+  `backend/**` changes, then redeploys both regional agent services with the
+  same source (its `deploy-agents` job — a no-op failure if you haven't done
+  step 8 yet, since those services won't exist).
 - `.github/workflows/deploy-frontend.yml` — rebuilds and redeploys the
   frontend when frontend source changes.
 
@@ -220,10 +285,11 @@ Add these under **Settings → Secrets and variables → Actions**:
 | `GCP_SA_KEY` | backend | contents of `gh-actions-key.json` |
 | `CLOUDFLARE_API_TOKEN` | frontend | token from the step above |
 | `CLOUDFLARE_ACCOUNT_ID` | frontend | Cloudflare dashboard → right sidebar of any domain, or Workers & Pages overview |
-| `CONNECTION_STRING` | backend | your Neon PostgreSQL connection string |
-| `REDIS_CONNECTION` | backend | your Upstash Redis connection string (optional) |
-| `CONNECTION_STRING` | backend | your Neon PostgreSQL connection string |
-| `REDIS_CONNECTION` | backend | your Upstash Redis connection string (optional) |
-| `CONNECTION_STRING` | backend | your Neon PostgreSQL connection string |
-| `REDIS_CONNECTION` | backend | your Upstash Redis connection string (optional) |
 | `VITE_API_BASE_URL` | frontend | the Cloud Run URL (or custom domain, once step 7 is done) |
+| `VITE_SSR_API_BASE_URL` | frontend | the raw Cloud Run URL — only needed if the API sits behind a custom domain on the same Cloudflare zone as the frontend, see step 7's note in the secrets list above |
+
+`CONNECTION_STRING`, `REDIS_CONNECTION`, and `AGENT_SHARED_SECRET` are **not**
+GitHub secrets — they're set once directly on the Cloud Run services via
+`gcloud run services update --set-env-vars` (steps 2/4 and step 8), and
+`gcloud run deploy` reuses them on every subsequent CI redeploy without the
+workflow needing to know their values.

@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SentinelOps.Api.Data;
@@ -50,6 +52,12 @@ public record NotificationChannel(
     string Target,
     bool Enabled);
 
+public record NotificationChannelInput(
+    string Type,
+    string Label,
+    string Target,
+    bool Enabled);
+
 public record AppSettings(
     string DefaultTimeRange,
     int DefaultIntervalSeconds,
@@ -74,6 +82,7 @@ public record AppSettingsPatch(
     bool? StatusPageEnabled = null,
     NotificationChannel[]? Channels = null);
 
+/// <summary>A real regional checking agent, read from AgentEntity — see CheckCoordinator.</summary>
 public record Region(
     string Id,
     string Name,
@@ -174,17 +183,63 @@ public class Program
     private const string StatusPaused = "paused";
     private const string StatusUnknown = "unknown";
     private const string IncidentResolved = "resolved";
-    private const string PreviewAgentVersion = "0.4.2-preview";
 
     protected Program()
     {
+    }
+
+    public static void Main(string[] args)
+    {
+        var connString = Environment.GetEnvironmentVariable("CONNECTION_STRING");
+        var orchestratorUrl = Environment.GetEnvironmentVariable("ORCHESTRATOR_URL");
+
+        // Two run modes from one image/deploy: the orchestrator (this API + Postgres +
+        // its own in-process regional agent), or a remote-only regional agent (no DB,
+        // just polls the orchestrator over HTTP) — see backend/DEPLOY.md and
+        // CheckCoordinator's doc comment. Remote-agent mode is opt-in and explicit
+        // (ORCHESTRATOR_URL set, the only env var meaningful there and nowhere else) —
+        // a merely-missing CONNECTION_STRING must never silently switch modes, so local
+        // dev/tests/CI without any of these env vars set still get the full orchestrator,
+        // falling back to a local Postgres default exactly as before this feature existed.
+        if (string.IsNullOrWhiteSpace(connString) && !string.IsNullOrWhiteSpace(orchestratorUrl))
+        {
+            RunRemoteAgentOnly(args);
+            return;
+        }
+
+        RunOrchestrator(args, connString ?? "Host=localhost;Database=sentinelops;Username=sentinelops;Password=sentinelops");
+    }
+
+    private static void RunRemoteAgentOnly(string[] args)
+    {
+        var builder = WebApplication.CreateBuilder(args);
+        builder.Services.AddHttpClient("monitor-check", client => client.Timeout = TimeSpan.FromSeconds(30));
+        builder.Services.AddHostedService<RemoteAgentService>();
+        var app = builder.Build();
+
+        app.MapGet("/", () => Results.Ok(new
+        {
+            status = "ok",
+            service = "SentinelOps Agent",
+            region = MonitorCheckService.RegionId,
+            timestamp = DateTimeOffset.UtcNow,
+        }));
+        app.MapGet("/health", () => Results.Ok(new
+        {
+            status = "ok",
+            service = "SentinelOps Agent",
+            region = MonitorCheckService.RegionId,
+            timestamp = DateTimeOffset.UtcNow,
+        }));
+
+        app.Run();
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage(
         "Major Code Smell",
         "S3776",
         Justification = "Minimal API endpoint composition keeps the application's route contract in one place.")]
-    public static void Main(string[] args)
+    private static void RunOrchestrator(string[] args, string connString)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -207,9 +262,8 @@ public class Program
         }
         builder.Services.AddHttpClient("monitor-check", client => client.Timeout = TimeSpan.FromSeconds(30));
 
-        var connString = Environment.GetEnvironmentVariable("CONNECTION_STRING")
-                         ?? "Host=localhost;Database=sentinelops;Username=sentinelops;Password=sentinelops";
         builder.Services.AddDbContext<AppDbContext>(opt => opt.UseNpgsql(connString));
+        builder.Services.AddSingleton<CheckCoordinator>();
         builder.Services.AddHostedService<MonitorCheckService>();
 
         // Deployed frontend origin(s), e.g. https://sentinel-status.pages.dev or a custom
@@ -242,7 +296,26 @@ public class Program
 
         using (var scope = app.Services.CreateScope())
         {
-            scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.EnsureCreated();
+            var seedDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            seedDb.Database.EnsureCreated();
+
+            if (!seedDb.Settings.Any())
+            {
+                seedDb.Settings.Add(new SettingsEntity
+                {
+                    Id = "default",
+                    OrganizationName = "SentinelOps",
+                    DefaultTimeRange = "24h",
+                    DefaultIntervalSeconds = 60,
+                    DefaultTimeoutMs = 5000,
+                    DefaultRegions = ["us-central1", "us-east1"],
+                    StatusPageEnabled = true,
+                });
+                seedDb.NotificationChannels.AddRange(
+                    new NotificationChannelEntity { Id = "email_default", Type = "email", Label = "Primary Email", Target = "ops@example.invalid", Enabled = true },
+                    new NotificationChannelEntity { Id = "slack_default", Type = "slack", Label = "Ops Slack", Target = "https://hooks.example.invalid/slack", Enabled = true });
+                seedDb.SaveChanges();
+            }
         }
 
         app.MapHub<SentinelOpsHub>("/realtime");
@@ -268,32 +341,6 @@ public class Program
             app.UseSwaggerUI();
         }
 
-        // Read-only future-phase preview, explicitly not real per the project README —
-        // there's no fleet of distributed checking agents behind this, just the one
-        // process actually performing checks.
-        var regions = new List<Region>
-        {
-            new("us-east", "us-east-1", "Ashburn, US", PreviewAgentVersion, DateTimeOffset.UtcNow.AddMinutes(-12), 42, true),
-            new("us-west", "us-west-2", "Portland, US", PreviewAgentVersion, DateTimeOffset.UtcNow.AddMinutes(-21), 38, true),
-            new("eu-central", "eu-central-1", "Frankfurt, DE", "0.4.1-preview", DateTimeOffset.UtcNow.AddMinutes(-34), 35, true),
-            new("eu-west", "eu-west-1", "Dublin, IE", "0.4.1-preview", DateTimeOffset.UtcNow.AddMinutes(-9), 0, false),
-            new("ap-south", "ap-south-1", "Mumbai, IN", PreviewAgentVersion, DateTimeOffset.UtcNow.AddMinutes(-47), 27, true),
-            new("ap-northeast", "ap-northeast-1", "Tokyo, JP", PreviewAgentVersion, DateTimeOffset.UtcNow.AddMinutes(-52), 24, true),
-        };
-
-        var settings = new AppSettings(
-            "24h",
-            60,
-            5000,
-            new[] { "us-east", "us-west" },
-            "SentinelOps",
-            true,
-            new[]
-            {
-                new NotificationChannel("email_default", "email", "Primary Email", "ops@example.invalid", true),
-                new NotificationChannel("slack_default", "slack", "Ops Slack", "https://hooks.example.invalid/slack", true)
-            });
-
         static MonitorStatusInfo ToMonitorDto(MonitorEntity m) => new(
             m.Id, m.Name, m.Url, m.Method, m.ExpectedStatus, m.IntervalSeconds, m.TimeoutMs, m.Headers, m.Body,
             m.Regions, m.Tags, m.Assertions, m.AlertChannels, m.Enabled, m.CurrentStatus, m.Uptime24h,
@@ -308,6 +355,16 @@ public class Program
 
         static IncidentEvent ToIncidentEventDto(IncidentEventEntity e) => new(
             e.Id, e.IncidentId, e.Type, e.Timestamp, e.Actor, e.Message);
+
+        static Region ToRegionDto(AgentEntity a) => new(
+            a.Id, a.Name, a.Location, a.AgentVersion, a.LastHeartbeat, a.ChecksLastMinute, a.Healthy);
+
+        static NotificationChannel ToChannelDto(NotificationChannelEntity c) => new(
+            c.Id, c.Type, c.Label, c.Target, c.Enabled);
+
+        static AppSettings ToSettingsDto(SettingsEntity s, List<NotificationChannelEntity> channels) => new(
+            s.DefaultTimeRange, s.DefaultIntervalSeconds, s.DefaultTimeoutMs, s.DefaultRegions, s.OrganizationName,
+            s.StatusPageEnabled, channels.Select(ToChannelDto).ToArray());
 
         static DateTimeOffset RangeStart(string range) => range switch
         {
@@ -343,7 +400,11 @@ public class Program
             return checks.Any(c => c.Success) ? StatusDegraded : StatusDown;
         }
 
-        app.MapGet("/api/agents", () => Results.Ok(regions));
+        // Public, unauthenticated fleet-list read — same as every other dashboard-facing
+        // /api/* route today. Now backed by real AgentEntity rows kept fresh by real
+        // heartbeats, instead of a hardcoded fake list.
+        app.MapGet("/api/agents", async (AppDbContext db) =>
+            Results.Ok((await db.Agents.OrderBy(a => a.Id).ToListAsync()).Select(ToRegionDto)));
 
         if (app.Environment.IsDevelopment())
         {
@@ -361,7 +422,7 @@ public class Program
                         ExpectedStatus = [200],
                         IntervalSeconds = 15,
                         TimeoutMs = 5000,
-                        Regions = ["local"],
+                        Regions = [MonitorCheckService.RegionId],
                         Tags = ["portfolio-demo", "healthy"],
                         Enabled = true,
                         CurrentStatus = StatusUnknown,
@@ -378,8 +439,8 @@ public class Program
                         ExpectedStatus = [200],
                         IntervalSeconds = 15,
                         TimeoutMs = 5000,
-                        Regions = ["local"],
-                        Tags = ["portfolio-demo", "incident"] ,
+                        Regions = [MonitorCheckService.RegionId],
+                        Tags = ["portfolio-demo", "incident"],
                         Enabled = true,
                         CurrentStatus = StatusUnknown,
                         Uptime24h = 100,
@@ -495,6 +556,8 @@ public class Program
 
             var checks = db.CheckResults.Where(c => c.MonitorId == id);
             db.CheckResults.RemoveRange(checks);
+            var regionStates = db.MonitorRegionStates.Where(s => s.MonitorId == id);
+            db.MonitorRegionStates.RemoveRange(regionStates);
             db.Monitors.Remove(monitor);
             await db.SaveChangesAsync();
             return Results.NoContent();
@@ -778,22 +841,136 @@ public class Program
             });
         });
 
-        app.MapGet("/api/settings", () => Results.Ok(settings));
-        app.MapPatch("/api/settings", (AppSettingsPatch patch) =>
+        app.MapGet("/api/settings", async (AppDbContext db) =>
         {
-            settings = settings with
+            var settingsRow = await db.Settings.FirstAsync();
+            var channels = await db.NotificationChannels.ToListAsync();
+            return Results.Ok(ToSettingsDto(settingsRow, channels));
+        });
+
+        app.MapPatch("/api/settings", async (AppSettingsPatch patch, AppDbContext db) =>
+        {
+            var settingsRow = await db.Settings.FirstAsync();
+            settingsRow.DefaultTimeRange = patch.DefaultTimeRange ?? settingsRow.DefaultTimeRange;
+            settingsRow.DefaultIntervalSeconds = patch.DefaultIntervalSeconds ?? settingsRow.DefaultIntervalSeconds;
+            settingsRow.DefaultTimeoutMs = patch.DefaultTimeoutMs ?? settingsRow.DefaultTimeoutMs;
+            settingsRow.DefaultRegions = patch.DefaultRegions ?? settingsRow.DefaultRegions;
+            settingsRow.OrganizationName = patch.OrganizationName ?? settingsRow.OrganizationName;
+            settingsRow.StatusPageEnabled = patch.StatusPageEnabled ?? settingsRow.StatusPageEnabled;
+            await db.SaveChangesAsync();
+
+            var channels = await db.NotificationChannels.ToListAsync();
+            return Results.Ok(ToSettingsDto(settingsRow, channels));
+        });
+
+        app.MapPost("/api/settings/channels", async (NotificationChannelInput input, AppDbContext db) =>
+        {
+            var channel = new NotificationChannelEntity
             {
-                DefaultTimeRange = patch.DefaultTimeRange ?? settings.DefaultTimeRange,
-                DefaultIntervalSeconds = patch.DefaultIntervalSeconds ?? settings.DefaultIntervalSeconds,
-                DefaultTimeoutMs = patch.DefaultTimeoutMs ?? settings.DefaultTimeoutMs,
-                DefaultRegions = patch.DefaultRegions ?? settings.DefaultRegions,
-                OrganizationName = patch.OrganizationName ?? settings.OrganizationName,
-                StatusPageEnabled = patch.StatusPageEnabled ?? settings.StatusPageEnabled,
-                Channels = patch.Channels ?? settings.Channels,
+                Id = $"chan_{Guid.NewGuid():N}",
+                Type = input.Type,
+                Label = input.Label,
+                Target = input.Target,
+                Enabled = input.Enabled,
             };
-            return Results.Ok(settings);
+            db.NotificationChannels.Add(channel);
+            await db.SaveChangesAsync();
+            return Results.Created($"/api/settings/channels/{channel.Id}", ToChannelDto(channel));
+        });
+
+        app.MapPut("/api/settings/channels/{id}", async (string id, NotificationChannelInput input, AppDbContext db) =>
+        {
+            var channel = await db.NotificationChannels.FindAsync(id);
+            if (channel is null) return Results.NotFound();
+
+            channel.Type = input.Type;
+            channel.Label = input.Label;
+            channel.Target = input.Target;
+            channel.Enabled = input.Enabled;
+            await db.SaveChangesAsync();
+            return Results.Ok(ToChannelDto(channel));
+        });
+
+        app.MapDelete("/api/settings/channels/{id}", async (string id, AppDbContext db) =>
+        {
+            var channel = await db.NotificationChannels.FindAsync(id);
+            if (channel is null) return Results.NotFound();
+
+            db.NotificationChannels.Remove(channel);
+            await db.SaveChangesAsync();
+            return Results.NoContent();
+        });
+
+        // Regional agent endpoints — shared-secret auth, not open like the rest of
+        // /api/*. Remote agents (RemoteAgentService, running as separate Cloud Run
+        // services with no DB of their own) poll/report here over HTTP; the
+        // orchestrator's own in-process agent (MonitorCheckService) calls the same
+        // CheckCoordinator methods directly, skipping the HTTP round-trip.
+        var agentGroup = app.MapGroup("/api/agents").AddEndpointFilter(async (ctx, next) =>
+        {
+            var expected = Environment.GetEnvironmentVariable("AGENT_SHARED_SECRET");
+            var provided = ctx.HttpContext.Request.Headers["X-Agent-Secret"].ToString();
+            var region = ctx.HttpContext.Request.Headers["X-Agent-Region"].ToString();
+
+            var expectedBytes = Encoding.UTF8.GetBytes(expected ?? "");
+            var providedBytes = Encoding.UTF8.GetBytes(provided);
+            var validSecret = !string.IsNullOrEmpty(expected)
+                && expectedBytes.Length == providedBytes.Length
+                && CryptographicOperations.FixedTimeEquals(expectedBytes, providedBytes);
+
+            if (!validSecret || string.IsNullOrEmpty(region))
+            {
+                return Results.Unauthorized();
+            }
+
+            ctx.HttpContext.Items["AgentRegion"] = region;
+            return await next(ctx);
+        });
+
+        agentGroup.MapGet("/checks/due", async (HttpContext http, AppDbContext db, CheckCoordinator coordinator) =>
+        {
+            var region = (string)http.Items["AgentRegion"]!;
+            var due = await coordinator.GetDueMonitorsAsync(db, region, http.RequestAborted);
+            return Results.Ok(due.Select(m => new
+            {
+                monitorId = m.Id,
+                url = m.Url,
+                method = m.Method,
+                expectedStatus = m.ExpectedStatus,
+                timeoutMs = m.TimeoutMs,
+                headers = m.Headers,
+                body = m.Body,
+            }));
+        });
+
+        agentGroup.MapPost("/checks/results", async (HttpContext http, CheckResultReportInput input, AppDbContext db, CheckCoordinator coordinator) =>
+        {
+            var region = (string)http.Items["AgentRegion"]!;
+            await coordinator.RecordResultAsync(db, input.MonitorId, region, input.Success, input.StatusCode, input.LatencyMs, input.ErrorType, input.ErrorMessage, http.RequestAborted);
+            return Results.NoContent();
+        });
+
+        agentGroup.MapPost("/heartbeat", async (HttpContext http, AgentHeartbeatInput input, AppDbContext db, CheckCoordinator coordinator) =>
+        {
+            var region = (string)http.Items["AgentRegion"]!;
+            await coordinator.HeartbeatAsync(db, region, input.Name, input.Location, input.AgentVersion, input.ChecksLastMinute, http.RequestAborted);
+            return Results.NoContent();
         });
 
         app.Run();
     }
 }
+
+public record CheckResultReportInput(
+    string MonitorId,
+    bool Success,
+    int? StatusCode,
+    int LatencyMs,
+    string? ErrorType,
+    string? ErrorMessage);
+
+public record AgentHeartbeatInput(
+    string Name,
+    string Location,
+    string AgentVersion,
+    int ChecksLastMinute);

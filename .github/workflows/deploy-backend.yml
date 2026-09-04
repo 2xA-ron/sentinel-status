@@ -49,7 +49,8 @@ jobs:
 
       # `gcloud run deploy` reuses env vars, memory/CPU, etc. from the
       # previously deployed revision when they aren't passed explicitly, so
-      # FRONTEND_ORIGINS set manually per backend/DEPLOY.md carries forward.
+      # FRONTEND_ORIGINS/CONNECTION_STRING/AGENT_SHARED_SECRET set manually
+      # per backend/DEPLOY.md carry forward on every push.
       - name: Deploy to Cloud Run
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
@@ -58,5 +59,44 @@ jobs:
             --project "$GCP_PROJECT_ID" \
             --source backend/SentinelOps.Api \
             --region us-central1 \
+            --allow-unauthenticated \
+            --quiet
+
+  deploy-agents:
+    needs: deploy
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - service: sentinelops-agent-us-east1
+            region: us-east1
+          - service: sentinelops-agent-europe-west1
+            region: europe-west1
+    steps:
+      - uses: actions/checkout@v5
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      # These 2 services are the remote regional agents (see backend/DEPLOY.md
+      # "Deploy regional checking agents"). Their AGENT_REGION/ORCHESTRATOR_URL/
+      # AGENT_SHARED_SECRET are set once, manually, on first deploy — this job
+      # only redeploys the same source on every push, same reuse-previous-env-vars
+      # behavior as the primary API. If a service named here doesn't exist yet,
+      # follow backend/DEPLOY.md to create it first — this step won't set env
+      # vars for you.
+      - name: Redeploy regional agent
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          GCP_PROJECT_ID="$(printf '%s' "$GCP_PROJECT_ID" | tr -d '[:space:]"'\''' | tr -cd '[:print:]')"
+          gcloud run deploy "${{ matrix.service }}" \
+            --project "$GCP_PROJECT_ID" \
+            --source backend/SentinelOps.Api \
+            --region "${{ matrix.region }}" \
             --allow-unauthenticated \
             --quiet

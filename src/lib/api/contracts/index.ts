@@ -11,6 +11,7 @@ import type {
   IncidentEvent,
   Monitor,
   MonitorInput,
+  NotificationChannel,
   Region,
   StatusPageData,
   TimeRange,
@@ -63,6 +64,9 @@ export interface StatusPageService {
 export interface SettingsService {
   get(): Promise<AppSettings>;
   update(patch: Partial<AppSettings>): Promise<AppSettings>;
+  createChannel(input: Omit<NotificationChannel, "id">): Promise<NotificationChannel>;
+  updateChannel(id: string, input: Omit<NotificationChannel, "id">): Promise<NotificationChannel>;
+  deleteChannel(id: string): Promise<void>;
 }
 
 /** Thrown by every service on a simulated (or, later, real) transport failure. */

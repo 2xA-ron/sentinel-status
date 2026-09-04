@@ -10,6 +10,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CheckResultEntity> CheckResults => Set<CheckResultEntity>();
     public DbSet<IncidentEntity> Incidents => Set<IncidentEntity>();
     public DbSet<IncidentEventEntity> IncidentEvents => Set<IncidentEventEntity>();
+    public DbSet<AgentEntity> Agents => Set<AgentEntity>();
+    public DbSet<MonitorRegionStateEntity> MonitorRegionStates => Set<MonitorRegionStateEntity>();
+    public DbSet<SettingsEntity> Settings => Set<SettingsEntity>();
+    public DbSet<NotificationChannelEntity> NotificationChannels => Set<NotificationChannelEntity>();
 
     // PostgreSQL handles DateTimeOffset (timestamptz) and arrays natively,
     // so we don't need the DateTimeOffset→DateTime converter or JSON-string converters
@@ -43,6 +47,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasIndex(c => new { c.MonitorId, c.Timestamp });
         modelBuilder.Entity<IncidentEventEntity>()
             .HasIndex(e => e.IncidentId);
+
+        modelBuilder.Entity<MonitorRegionStateEntity>()
+            .HasKey(s => new { s.MonitorId, s.RegionId });
+
+        modelBuilder.Entity<SettingsEntity>()
+            .Property(s => s.DefaultRegions)
+            .HasColumnType("text[]");
     }
 }
 

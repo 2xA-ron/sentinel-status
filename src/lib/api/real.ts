@@ -4,6 +4,7 @@ import type {
   DashboardSummary,
   EventFeedItem,
   Incident,
+  NotificationChannel,
   IncidentEvent,
   Monitor,
   Region,
@@ -249,6 +250,23 @@ export const settingsApi: SettingsService = {
     return request<AppSettings>("/api/settings", {
       method: "PATCH",
       body: JSON.stringify(patch),
+    });
+  },
+  async createChannel(input) {
+    return request<NotificationChannel>("/api/settings/channels", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+  async updateChannel(id, input) {
+    return request<NotificationChannel>(`/api/settings/channels/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    });
+  },
+  async deleteChannel(id) {
+    await request<void>(`/api/settings/channels/${encodeURIComponent(id)}`, {
+      method: "DELETE",
     });
   },
 };
