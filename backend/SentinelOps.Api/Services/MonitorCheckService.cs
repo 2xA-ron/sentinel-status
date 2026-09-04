@@ -37,7 +37,9 @@ public class MonitorCheckService(
                 await RunDueChecksAsync(stoppingToken);
                 await MaybeHeartbeatAsync(stoppingToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            // See RemoteAgentService's identical guard for why this checks
+            // stoppingToken.IsCancellationRequested rather than the exception type.
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 logger.LogError(ex, "Monitor check tick failed");
             }

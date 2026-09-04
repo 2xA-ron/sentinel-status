@@ -42,7 +42,14 @@ public class RemoteAgentService(
                 await PollAndCheckAsync(stoppingToken);
                 await MaybeHeartbeatAsync(stoppingToken);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            // HttpClient's own request timeout throws TaskCanceledException — a subtype
+            // of OperationCanceledException — even when stoppingToken itself was never
+            // cancelled. Excluding all OperationCanceledExceptions here (as opposed to
+            // checking stoppingToken.IsCancellationRequested) let a single slow/stalled
+            // orchestrator request escape uncaught and crash-loop the whole host via
+            // BackgroundServiceExceptionBehavior.StopHost — only let a *real* shutdown
+            // through unhandled.
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
             {
                 logger.LogError(ex, "Remote agent poll failed for region {Region}", _region);
             }
