@@ -80,7 +80,7 @@ gcloud run deploy sentinelops-api \
   --allow-unauthenticated \
   --set-env-vars CONNECTION_STRING="Host=ep-xxx.us-east-2.aws.neon.tech;Database=sentinelops;Username=sentinelops;Password=password;SSL Mode=Require" \
   --set-env-vars REDIS_CONNECTION="rediss://default:password@xxx.upstash.io:6379" \
-  --set-env-vars FRONTEND_ORIGINS=https://placeholder.pages.dev
+  --set-env-vars FRONTEND_ORIGINS=https://runtimem3sh.dev
 ```
 
 Note the `Service URL` it prints (something like
@@ -108,23 +108,39 @@ gcloud run services update sentinelops-api \
 `FRONTEND_ORIGINS` is comma-separated if you need more than one origin (e.g.
 a `*.workers.dev` URL plus a custom domain).
 
-## 7. Optional: put the API behind your own domain via Cloudflare
+## 7. Put the API behind your own domain via Cloudflare
 
-Simplest approach — no Cloud Run domain mapping needed, keeps Cloudflare's
-proxy/WAF in front:
+For a proxied CNAME to Cloud Run, Cloudflare must send the Cloud Run service
+hostname as the origin `Host` header. Otherwise Cloud Run can return Google
+404 responses even though the same API route works on the `run.app` URL.
 
 1. In Cloudflare DNS, add a `CNAME` record: `api.yourdomain.com` →
    `sentinelops-api-xxxxx-uc.a.run.app`, proxy status **Proxied** (orange
    cloud).
-2. In Cloudflare SSL/TLS settings, set the mode to **Full** (not Flexible,
-   not Full Strict — Cloud Run's cert is valid for `*.run.app`, not your
-   custom domain, so Full works without extra cert setup).
-3. Re-run step 6 with `FRONTEND_ORIGINS` unchanged, but now use
+2. Create a Cloudflare **Origin Rule** for the hostname
+  `api.yourdomain.com`. Set **Host Header** (under origin request settings)
+  to the exact Cloud Run hostname from the CNAME, for example
+  `sentinelops-api-xxxxx-uc.a.run.app`.
+3. In Cloudflare SSL/TLS settings, use **Full** or **Full (strict)**. The
+  origin certificate is for the `run.app` hostname, so the origin hostname
+  in the rule must match the CNAME target.
+4. Re-run step 6 with `FRONTEND_ORIGINS` unchanged, but now use
    `https://api.yourdomain.com` as `VITE_API_BASE_URL` in step 5 instead of
    the raw `*.run.app` URL, then redeploy the frontend.
 
 WebSockets (the `/realtime` SignalR hub) pass through Cloudflare's proxy on
 the free plan by default — nothing extra to enable.
+
+Verify the origin and custom hostname separately:
+
+```bash
+curl -i https://sentinelops-api-xxxxx-uc.a.run.app/api/status
+curl -i https://api.yourdomain.com/api/status
+```
+
+Both requests should return HTTP 200. A `404` from the custom hostname while
+the `run.app` request returns `200` means the Origin Rule is missing or its
+host value does not exactly match the Cloud Run hostname.
 
 ## 8. CI/CD via GitHub Actions
 

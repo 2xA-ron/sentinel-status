@@ -31,7 +31,7 @@ interface RealtimeContextValue {
 
 const RealtimeContext = createContext<RealtimeContextValue | null>(null);
 
-const configuredApiBase = import.meta.env["VITE_API_BASE_URL"] ?? "http://localhost:5283";
+const configuredApiBase = import.meta.env["VITE_API_BASE_URL"] ?? "https://api.runtimem3sh.dev";
 // See src/lib/api/real.ts for why SSR and browser resolve the API base differently.
 const useRelativeApi = import.meta.env["VITE_USE_RELATIVE_API"] === "true";
 let API_BASE = import.meta.env.SSR

@@ -21,7 +21,7 @@ import {
   type SettingsService,
 } from "./contracts";
 
-const configuredApiBase = import.meta.env["VITE_API_BASE_URL"] ?? "http://localhost:5283";
+const configuredApiBase = import.meta.env["VITE_API_BASE_URL"] ?? "https://api.runtimem3sh.dev";
 // Two deploy shapes need different browser behavior, distinguished by VITE_USE_RELATIVE_API
 // (set at build time — see deploy/pi/frontend.Dockerfile):
 //  - Cloudflare Workers (default): the browser calls the API cross-origin using

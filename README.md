@@ -241,7 +241,8 @@ Set the deployed backend URL in `.env`:
 VITE_API_BASE_URL=https://api.example.com
 ```
 
-For local development, the default remains `http://localhost:5283` when the variable is not set.
+The application defaults to `https://api.runtimem3sh.dev` when the variable is not set.
+Use `http://localhost:5283` in `.env` when running the backend locally.
 
 ### Deploy to Cloudflare
 
