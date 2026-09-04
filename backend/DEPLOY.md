@@ -34,6 +34,16 @@ Choose **New repository secret** and add each name separately:
 * `CLOUDFLARE_API_TOKEN` — scoped Cloudflare Workers deployment token.
 * `CLOUDFLARE_ACCOUNT_ID` — Cloudflare account ID.
 * `VITE_API_BASE_URL` — deployed API URL, such as `https://sentinelops-api-xxxxx-uc.a.run.app`.
+* `VITE_SSR_API_BASE_URL` (optional, but required if the API sits behind a
+  custom domain on the *same* Cloudflare zone as the frontend, e.g.
+  `api.yourdomain.com` when the frontend is `yourdomain.com`) — the raw Cloud
+  Run URL, e.g. `https://sentinelops-api-xxxxx-uc.a.run.app`. SSR runs inside
+  the Cloudflare Worker itself, so a fetch to the custom API domain is a
+  same-zone subrequest; if Bot Fight Mode (or similar) is enabled on the
+  zone, it challenges that subrequest with a JS page the Worker can't solve,
+  and SSR gets HTML back instead of JSON. Setting this makes SSR bypass
+  Cloudflare and hit Cloud Run directly, while the browser keeps using
+  `VITE_API_BASE_URL` unchanged. See `src/lib/api/real.ts`.
 
 The workflows read these through `${{ secrets.SECRET_NAME }}`. Do not replace
 those expressions with literal credentials. The local `.env` file is only for

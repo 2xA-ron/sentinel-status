@@ -55,5 +55,12 @@ jobs:
         run: npm run deploy:cloudflare
         env:
           VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
+          # SSR runs inside the Cloudflare Worker itself, so a fetch to
+          # VITE_API_BASE_URL (api.runtimem3sh.dev) is a same-zone subrequest —
+          # Bot Fight Mode challenges it with a JS page the Worker can't solve,
+          # so SSR gets HTML back instead of JSON. Point SSR straight at the
+          # Cloud Run URL instead, bypassing Cloudflare's zone entirely; the
+          # browser keeps using VITE_API_BASE_URL unchanged. See real.ts.
+          VITE_SSR_API_BASE_URL: ${{ secrets.VITE_SSR_API_BASE_URL }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
