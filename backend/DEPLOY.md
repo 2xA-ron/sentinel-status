@@ -241,7 +241,7 @@ gcloud iam service-accounts create gh-actions-deployer \
 export SA="gh-actions-deployer@${PROJECT_ID}.iam.gserviceaccount.com"
 
 for role in roles/run.admin roles/storage.admin \
-            roles/artifactregistry.writer roles/cloudbuild.builds.editor \
+            roles/artifactregistry.admin roles/cloudbuild.builds.editor \
             roles/iam.serviceAccountUser; do
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:${SA}" \
@@ -254,7 +254,12 @@ gcloud iam service-accounts keys create gh-actions-key.json \
 
 Those roles cover what `gcloud run deploy --source` needs: deploying the
 Cloud Run service, and letting the Cloud Build it kicks off upload source,
-build the image, and push it to Artifact Registry.
+build the image, and push it to Artifact Registry. `artifactregistry.admin`
+(not just `.writer`) matters specifically for step 8's regional agents —
+Cloud Run auto-creates a per-region Artifact Registry repo the first time
+anything is deployed to a new region, and creating a repo needs `.admin`;
+`.writer` only covers pushing to a repo that already exists (true for
+`us-central1` after your first deploy, not true for a brand-new region).
 
 Paste the contents of `gh-actions-key.json` into a GitHub repo secret named
 `GCP_SA_KEY`, then delete the local file:
