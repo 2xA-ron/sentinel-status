@@ -68,6 +68,16 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>, 
     }
 
     [Fact]
+    public async Task RootAndHealthEndpoints_ReturnOk()
+    {
+        var root = await _client.GetAsync("/");
+        Assert.Equal(HttpStatusCode.OK, root.StatusCode);
+
+        var health = await _client.GetAsync("/health");
+        Assert.Equal(HttpStatusCode.OK, health.StatusCode);
+    }
+
+    [Fact]
     public async Task DashboardSummary_WithNoMonitors_DoesNotThrow()
     {
         // Regression check: averaging/maxing an empty monitor list used to throw

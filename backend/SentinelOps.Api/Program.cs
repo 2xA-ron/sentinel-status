@@ -248,6 +248,20 @@ public class Program
         app.MapHub<SentinelOpsHub>("/realtime");
         app.UseCors("FrontendLocal");
 
+        app.MapGet("/", () => Results.Ok(new
+        {
+            status = "ok",
+            service = "SentinelOps Api",
+            timestamp = DateTimeOffset.UtcNow,
+        }));
+
+        app.MapGet("/health", () => Results.Ok(new
+        {
+            status = "ok",
+            service = "SentinelOps Api",
+            timestamp = DateTimeOffset.UtcNow,
+        }));
+
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();
