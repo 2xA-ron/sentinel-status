@@ -297,6 +297,13 @@ public class Program
         using (var scope = app.Services.CreateScope())
         {
             var seedDb = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            // EnsureCreated() only creates the whole schema when the database has NO
+            // tables at all — once any table exists (true for every deploy after the
+            // very first), it's a no-op and silently does NOT add tables for newly
+            // added DbSets. Adding a DbSet to AppDbContext therefore also requires a
+            // one-time manual `CREATE TABLE` against the real database (see any
+            // AddDbSet-adding commit's description for the exact statement used) —
+            // there's no EF migrations tooling in this project to do it automatically.
             seedDb.Database.EnsureCreated();
 
             if (!seedDb.Settings.Any())
